@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}CambrifyIQ · Cambridge planning, made clear{% endblock %}
+{% block body_class %}marketing{% endblock %}
+{% block content %}
+<nav class="marketing-nav" aria-label="Main navigation">
+  <a class="brand" href="/"><span class="brand__mark">C</span><span>Cambrify<span>IQ</span></span></a>
+  <div class="marketing-nav__links">
+    <a href="#platform">Platform</a><a href="#schools">For schools</a>
+    <a href="{% url 'accounts:login' %}">Sign in</a>
+    <a class="button button--primary button--small" href="{% url 'accounts:create_school' %}">Create your school</a>
+  </div>
+</nav>
+<section class="hero">
+  <div class="hero__inner">
+    <div class="hero__copy">
+      <p class="eyebrow">Purpose-built for Cambridge schools</p>
+      <h1>Planning that turns curriculum into <em>progress.</em></h1>
+      <p>Give teachers one guided space for schemes, semester work plans and lesson plans—while leadership keeps quality, coverage and approvals in view.</p>
+      <div class="hero__actions">
+        <a class="button button--primary" href="{% url 'accounts:create_school' %}">Set up your school <span aria-hidden="true">→</span></a>
+        <a class="button button--secondary" href="{% url 'accounts:login' %}">Sign in to your workspace</a>
+      </div>
+    </div>
+    <div class="hero-card" aria-label="CambrifyIQ dashboard preview">
+      <div class="mock-top"><strong>Leera International School</strong><span class="mock-avatar"></span></div>
+      <div class="mock-welcome"><small>Monday, 16 August</small><h3>Good morning, Amina</h3></div>
+      <div class="mock-grid">
+        <div class="mock-stat"><small>Active plans</small><b>18</b></div>
+        <div class="mock-stat"><small>Awaiting review</small><b>6</b></div>
+        <div class="mock-stat"><small>Coverage</small><b>84%</b></div>
+      </div>
+      <div class="mock-list">
+        <div class="mock-row"><span class="dot dot--blue"></span><span>Science · Year 8</span><small>Draft</small></div>
+        <div class="mock-row"><span class="dot dot--gold"></span><span>Mathematics · Year 7</span><small>Review</small></div>
+        <div class="mock-row"><span class="dot"></span><span>English · Year 9</span><small>Approved</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="trust-strip"><div class="trust-strip__inner"><span>Assignment-scoped access</span><span>Controlled approval workflow</span><span>Offline-ready foundation</span><span>Supabase PostgreSQL</span></div></div>
+<section class="feature-section" id="platform">
+  <div class="section-heading"><p class="eyebrow">One authorised source</p><h2>Structure where it matters. Freedom where teachers need it.</h2><p>CambrifyIQ connects curriculum content, planning records and school oversight without turning teaching into paperwork.</p></div>
+  <div class="feature-grid">
+    <article class="feature"><div class="feature__icon">01</div><h3>Guided planning</h3><p>Build Cambridge-aligned work and lesson plans from controlled subjects, classes, topics and objectives.</p></article>
+    <article class="feature"><div class="feature__icon">02</div><h3>Clear accountability</h3><p>Submit, review, return and approve with an auditable history and immutable approved versions.</p></article>
+    <article class="feature"><div class="feature__icon">03</div><h3>True school boundaries</h3><p>Every protected record is school-scoped, with teacher access narrowed to active assignments.</p></article>
+    <article class="feature"><div class="feature__icon">04</div><h3>Consistent documents</h3><p>Versioned templates will produce reliable, branded PDFs without repeated manual formatting.</p></article>
+    <article class="feature"><div class="feature__icon">05</div><h3>Leadership insight</h3><p>Role-specific views put completion, review queues and curriculum coverage in the right hands.</p></article>
+    <article class="feature"><div class="feature__icon">06</div><h3>Ready beyond the desk</h3><p>An installable PWA foundation supports the protected offline drafting model on the roadmap.</p></article>
+  </div>
+</section>
+<section class="cta" id="schools"><div><h2>Build your school workspace today.</h2><p>A Head of Cambridge or School Director can create the tenant and invite the team securely.</p></div><a class="button button--primary" href="{% url 'accounts:create_school' %}">Create school workspace</a></section>
+{% endblock %}
+{% block footer %}<footer class="marketing-footer">© 2026 CambrifyIQ · Academic planning with clarity.</footer>{% endblock %}

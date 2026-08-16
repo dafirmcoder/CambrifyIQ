@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Invitation unavailable · CambrifyIQ{% endblock %}
+{% block content %}<div class="center-page"><section class="center-card"><div class="center-card__icon">!</div><p class="error-code">INVITATION UNAVAILABLE</p><h1>This link cannot be used</h1><p>It may have expired, been accepted already or been replaced by a newer invitation. Ask a school leader to send a fresh one.</p><a class="button button--primary" href="{% url 'accounts:login' %}">Go to sign in</a></section></div>{% endblock %}

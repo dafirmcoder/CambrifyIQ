@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Create your school · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="auth-layout">
+  <aside class="auth-aside">
+    <a class="brand" href="/"><span class="brand__mark">C</span><span>Cambrify<span>IQ</span></span></a>
+    <div class="auth-quote"><p class="eyebrow">School onboarding</p><h1>Your Cambridge planning system starts here.</h1><p>Create a protected workspace for your school. You will become its first authorised leader and can invite the rest of your team.</p></div>
+    <div class="auth-proof"><span>About 2 minutes</span><span>No card required</span></div>
+  </aside>
+  <section class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-card__mobile-brand" href="/"><span class="brand__mark">C</span><span>Cambrify<span>IQ</span></span></a>
+      <p class="eyebrow">Create a workspace</p><h1>Tell us about your school</h1><p>For authorised Heads of Cambridge and School Directors.</p>
+      <form method="post" class="form-stack" novalidate>{% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        {{ form.as_p }}
+        <button class="button button--primary" type="submit">Create school workspace</button>
+      </form>
+      <p class="auth-foot">Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a></p>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="Cambridge planning, aligned and accountable.">
+  <title>{% block title %}CambrifyIQ{% endblock %}</title>
+  <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
+  <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% if user.is_authenticated %}
+  <header class="app-header">
+    <a class="brand brand--app" href="{% url 'dashboard:home' %}" aria-label="CambrifyIQ dashboard">
+      <span class="brand__mark">C</span>
+      <span>Cambrify<span>IQ</span></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+    <nav class="app-nav" id="primary-nav" aria-label="Primary navigation">
+      <a href="{% url 'dashboard:home' %}" {% if request.resolver_match.namespace == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
+      {% if active_membership.can_manage_users %}
+      <a href="{% url 'schools:team' %}" {% if request.resolver_match.url_name == 'team' %}aria-current="page"{% endif %}>People</a>
+      <a href="{% url 'schools:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>School setup</a>
+      {% endif %}
+    </nav>
+    <div class="header-actions">
+      {% if school_memberships|length > 1 %}
+      <details class="school-switcher">
+        <summary>{{ active_school.name|truncatechars:24 }}</summary>
+        <div class="switcher-menu">
+          {% for item in school_memberships %}
+          <form method="post" action="{% url 'schools:switch' item.school_id %}">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" {% if item.school_id == active_school.id %}aria-current="true"{% endif %}>{{ item.school.name }}<small>{{ item.get_role_display }}</small></button>
+          </form>
+          {% endfor %}
+        </div>
+      </details>
+      {% else %}
+      <div class="school-label"><span>{{ active_school.name|default:"No school"|truncatechars:24 }}</span><small>{{ active_membership.get_role_display }}</small></div>
+      {% endif %}
+      <details class="user-menu">
+        <summary aria-label="Open account menu">{{ user.get_short_name|first|upper }}</summary>
+        <div class="user-menu__panel">
+          <strong>{{ user.full_name }}</strong><small>{{ user.email }}</small>
+          <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
+        </div>
+      </details>
+    </div>
+  </header>
+  {% endif %}
+
+  {% if messages %}
+  <div class="messages" aria-live="polite">
+    {% for message in messages %}<div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <main id="main-content">{% block content %}{% endblock %}</main>
+  {% block footer %}{% endblock %}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

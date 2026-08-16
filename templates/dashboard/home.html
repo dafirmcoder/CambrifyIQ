@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Overview · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div><span class="role-chip">{{ active_membership.get_role_display }}</span><h1>Good day, {{ user.get_short_name }}</h1><p>Here is what is happening at {{ active_school.name }}.</p></div>
+    {% if is_leader %}<a class="button button--primary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
+  </header>
+  <section class="stats-grid" aria-label="School summary">
+    {% if is_teacher %}
+      <article class="stat-card"><div class="stat-card__label">Active assignments</div><div class="stat-card__value">{{ stats.assignments }}</div><div class="stat-card__hint">Scoped to today</div></article>
+      <article class="stat-card"><div class="stat-card__label">Draft plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
+      <article class="stat-card"><div class="stat-card__label">Returned plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
+      <article class="stat-card"><div class="stat-card__label">Approved plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
+    {% else %}
+      <article class="stat-card"><div class="stat-card__label">Active team</div><div class="stat-card__value">{{ stats.team_members }}</div><div class="stat-card__hint">Across four school roles</div></article>
+      <article class="stat-card"><div class="stat-card__label">Subjects</div><div class="stat-card__value">{{ stats.subjects }}</div><div class="stat-card__hint">Active school catalogue</div></article>
+      <article class="stat-card"><div class="stat-card__label">Classes</div><div class="stat-card__value">{{ stats.classes }}</div><div class="stat-card__hint">Active teaching groups</div></article>
+      <article class="stat-card"><div class="stat-card__label">Pending invitations</div><div class="stat-card__value">{{ stats.pending_invites }}</div><div class="stat-card__hint">Expire after seven days</div></article>
+    {% endif %}
+  </section>
+  <div class="dashboard-grid">
+    <section class="panel">
+      <header class="panel__header"><h2>{% if is_teacher %}My teaching assignments{% else %}Planning activity{% endif %}</h2></header>
+      {% if assignments %}
+      <div class="panel__body"><ul class="assignment-list">{% for assignment in assignments %}<li><span class="assignment-code">{{ assignment.subject.code|truncatechars:5 }}</span><div><strong>{{ assignment.subject.name }}</strong><small>{{ assignment.school_class.name }} · from {{ assignment.effective_from|date:"j M Y" }}</small></div></li>{% endfor %}</ul></div>
+      {% else %}
+      <div class="empty-state"><div class="empty-state__icon">◇</div><h3>{% if is_teacher %}No active assignment yet{% else %}Planning modules are next{% endif %}</h3><p>{% if is_teacher %}A school leader or coordinator needs to assign a subject and class before planning options become available.{% else %}The tenant, access and assignment foundation is ready. Curriculum and plan workflows follow in the next milestones.{% endif %}</p></div>
+      {% endif %}
+    </section>
+    <aside>
+      <section class="panel">
+        <header class="panel__header"><h2>School readiness</h2><strong>{{ setup_percent }}%</strong></header>
+        <div class="panel__body">
+          <div class="progress" aria-label="{{ setup_percent }} percent complete"><span style="width: {{ setup_percent }}%"></span></div>
+          <ul class="checklist">
+            <li class="{% if setup.school_profile %}is-done{% endif %}"><span class="checklist__mark">{% if setup.school_profile %}✓{% else %}1{% endif %}</span>Complete school profile</li>
+            <li class="{% if setup.academic_year %}is-done{% endif %}"><span class="checklist__mark">{% if setup.academic_year %}✓{% else %}2{% endif %}</span>Add academic year</li>
+            <li class="{% if setup.subjects %}is-done{% endif %}"><span class="checklist__mark">{% if setup.subjects %}✓{% else %}3{% endif %}</span>Add subjects</li>
+            <li class="{% if setup.classes %}is-done{% endif %}"><span class="checklist__mark">{% if setup.classes %}✓{% else %}4{% endif %}</span>Add classes</li>
+            <li class="{% if setup.team %}is-done{% endif %}"><span class="checklist__mark">{% if setup.team %}✓{% else %}5{% endif %}</span>Invite your team</li>
+          </ul>
+          {% if is_leader %}<a class="button button--secondary button--small" href="{% url 'schools:settings' %}">Continue school setup</a>{% endif %}
+          <div class="next-module"><strong>Foundation release</strong><small>Approved template builders, workflows and PDFs are deliberately staged for the plan modules.</small></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

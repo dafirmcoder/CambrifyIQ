@@ -1,0 +1,12 @@
+{
+  "name": "CambrifyIQ",
+  "short_name": "CambrifyIQ",
+  "description": "Cambridge planning, aligned and accountable.",
+  "start_url": "/dashboard/",
+  "display": "standalone",
+  "background_color": "#f4f7fa",
+  "theme_color": "#102a43",
+  "icons": [
+    {"src": "/static/img/mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
