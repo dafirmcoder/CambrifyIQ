@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.schools",
+    "apps.curriculum",
+    "apps.planning",
     "apps.dashboard",
     "apps.api",
 ]
