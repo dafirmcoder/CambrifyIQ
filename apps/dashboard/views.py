@@ -2,6 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
+from apps.dashboard import reporting
+from apps.plans.models import LessonPlan, PlanState, WorkPlan
+from apps.plans.services import visible_plans
 from apps.schools.models import (
     AcademicYear,
     Invitation,
@@ -49,13 +52,31 @@ def home(request):
         "classes": stats["classes"] > 0,
         "team": stats["team_members"] > 1,
     }
+
+    is_teacher = membership.role == Membership.Role.TEACHER
+    analytics = reporting.dashboard_context(membership)
+
+    recent_plans = list(visible_plans(membership, LessonPlan)[:5])
+    action_needed = list(visible_plans(membership, LessonPlan).filter(state=PlanState.RETURNED)[:5])
+
     context = {
         "stats": stats,
         "assignments": active_assignments[:6],
         "setup": setup,
         "setup_percent": round(sum(setup.values()) / len(setup) * 100),
         "is_leader": membership.can_manage_users,
-        "is_teacher": membership.role == Membership.Role.TEACHER,
+        "is_teacher": is_teacher,
         "is_coordinator": membership.role == Membership.Role.COORDINATOR,
+        "analytics": analytics,
+        "summary": analytics.get("summary"),
+        "pending": analytics.get("pending"),
+        "coverage": analytics.get("coverage", [])[:6],
+        "content": analytics.get("content"),
+        "completion": analytics.get("completion"),
+        "turnaround": analytics.get("turnaround"),
+        "documents": analytics.get("documents"),
+        "recent_plans": recent_plans,
+        "action_needed": action_needed,
+        "work_plan_total": visible_plans(membership, WorkPlan).count(),
     }
     return render(request, "dashboard/home.html", context)

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Plans · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Planning</p>
+      <h1>Work plans &amp; lesson plans</h1>
+      <p>Create, track and download your Cambridge planning documents.</p>
+    </div>
+    {% if not is_teacher %}<a class="button button--secondary" href="{% url 'plans:review_queue' %}">Review queue</a>{% endif %}
+  </header>
+
+  {% if is_teacher %}
+  <div class="dashboard-grid dashboard-grid--even">
+    <section class="panel">
+      <header class="panel__header"><h2>Start a semester work plan</h2></header>
+      <div class="panel__body">
+        {% if assignments and terms %}
+        <form method="post" action="{% url 'plans:create_work_plan' %}" class="stack-form">
+          {% csrf_token %}
+          <div class="field">
+            <label for="wp-assignment">Assignment</label>
+            <select id="wp-assignment" name="assignment" required>
+              {% for item in assignments %}<option value="{{ item.pk }}">{{ item.subject.name }} · {{ item.school_class.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="wp-term">Semester</label>
+            <select id="wp-term" name="term" required>
+              {% for term in terms %}<option value="{{ term.pk }}">{{ term.academic_year.name }} · {{ term.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <button class="button button--primary" type="submit">Create work plan</button>
+        </form>
+        {% else %}
+        <p class="muted">You need an active assignment and an academic term before planning.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header"><h2>Start a lesson plan</h2></header>
+      <div class="panel__body">
+        {% if assignments %}
+        <form method="post" action="{% url 'plans:create_lesson_plan' %}" class="stack-form">
+          {% csrf_token %}
+          <div class="field">
+            <label for="lp-assignment">Assignment</label>
+            <select id="lp-assignment" name="assignment" required>
+              {% for item in assignments %}<option value="{{ item.pk }}">{{ item.subject.name }} · {{ item.school_class.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="lp-date">Lesson date</label>
+            <input id="lp-date" type="date" name="lesson_date" required>
+          </div>
+          <button class="button button--primary" type="submit">Create lesson plan</button>
+        </form>
+        {% else %}
+        <p class="muted">You need an active assignment before planning.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  {% endif %}
+
+  <section class="panel">
+    <header class="panel__header"><h2>Semester work plans</h2></header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Plan</th><th>Semester</th><th>Author</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+        <tbody>
+          {% for plan in work_plans %}
+          <tr>
+            <td><strong>{{ plan.assignment.subject.name }}</strong><small>{{ plan.assignment.school_class.name }}</small></td>
+            <td>{{ plan.term.name }}</td>
+            <td>{{ plan.author.get_short_name }}</td>
+            <td><span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span></td>
+            <td>{{ plan.updated_at|date:"j M Y" }}</td>
+            <td class="row-actions">
+              <a class="button button--secondary button--small" href="{% url 'plans:work_plan' plan.pk %}">Open</a>
+              <a class="button button--ghost button--small" href="{% url 'plans:pdf' 'work' plan.pk %}">PDF</a>
+            </td>
+          </tr>
+          {% empty %}<tr><td colspan="6" class="muted">No work plans yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header class="panel__header"><h2>Lesson plans</h2></header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Lesson</th><th>Date</th><th>Author</th><th>Status</th><th>Attendance</th><th></th></tr></thead>
+        <tbody>
+          {% for plan in lesson_plans %}
+          <tr>
+            <td><strong>{{ plan.assignment.subject.name }}</strong><small>{{ plan.assignment.school_class.name }}</small></td>
+            <td>{{ plan.lesson_date|date:"j M Y" }}</td>
+            <td>{{ plan.author.get_short_name }}</td>
+            <td><span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span></td>
+            <td>{{ plan.attendance_total|default:"—" }}</td>
+            <td class="row-actions">
+              <a class="button button--secondary button--small" href="{% url 'plans:lesson_plan' plan.pk %}">Open</a>
+              <a class="button button--ghost button--small" href="{% url 'plans:pdf' 'lesson' plan.pk %}">PDF</a>
+            </td>
+          </tr>
+          {% empty %}<tr><td colspan="6" class="muted">No lesson plans yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

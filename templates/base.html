@@ -23,6 +23,10 @@
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
     <nav class="app-nav" id="primary-nav" aria-label="Primary navigation">
       <a href="{% url 'dashboard:home' %}" {% if request.resolver_match.namespace == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
+      <a href="{% url 'plans:list' %}" {% if request.resolver_match.namespace == 'plans' and request.resolver_match.url_name != 'review_queue' %}aria-current="page"{% endif %}>Plans</a>
+      {% if active_membership.role != 'teacher' %}
+      <a href="{% url 'plans:review_queue' %}" {% if request.resolver_match.url_name == 'review_queue' %}aria-current="page"{% endif %}>Review</a>
+      {% endif %}
       {% if active_membership.can_manage_users %}
       <a href="{% url 'schools:team' %}" {% if request.resolver_match.url_name == 'team' %}aria-current="page"{% endif %}>People</a>
       <a href="{% url 'schools:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>School setup</a>
@@ -64,6 +68,7 @@
   <main id="main-content">{% block content %}{% endblock %}</main>
   {% block footer %}{% endblock %}
   <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/offline-queue.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

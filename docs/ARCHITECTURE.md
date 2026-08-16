@@ -34,6 +34,7 @@ Membership is intentionally queried through a global manager because it establis
 - `schools`: schools, memberships, invitations, academic calendar foundation, subjects, classes, assignments and immutable audits.
 - `curriculum`: versioned schemes of work, topics, subtopics, learning and assessment objectives, scoped option services and validated imports.
 - `planning`: immutable planning templates, template versions, the verified RED/BLUE/system field register and the template locking procedure.
+- `plans`: Work Plans, Lesson Plans, the shared workflow engine, validation, deterministic PDF rendering and the offline sync queue.
 - `dashboard`: role-aware foundation dashboard and onboarding readiness.
 - `api`: session API for login, identity and scoped teacher assignments.
 - `core`: middleware, tenant context, health checks and shared web behaviour.
@@ -53,10 +54,12 @@ The proposal's remaining modules should be added without weakening this boundary
 
 1. ~~Curriculum: versioned schemes, topics, subtopics, LOs and AOs.~~ Delivered.
 2. ~~Templates: immutable template versions, fields, options, assets and acceptance state.~~ Delivered.
-3. Planning: work plans, lesson plans and field values.
-4. Workflow: reviews, transitions, immutable approved plan revisions and notifications.
-5. Documents: protected template assets, deterministic PDF rendering and checksums.
-6. Sync: idempotent operations, revision conflicts and per-user offline retention.
+3. ~~Planning: work plans, lesson plans and field values.~~ Delivered.
+4. ~~Workflow: reviews, transitions and immutable approved plan revisions.~~ Delivered;
+   notifications still need mail credentials.
+5. Documents: deterministic PDF rendering and checksums are delivered. Moving the stored
+   bytes into protected object storage still needs bucket credentials.
+6. ~~Sync: idempotent operations, revision conflicts and per-user offline retention.~~ Delivered.
 
 The PDF modules must not begin production rendering until the clean Lesson Plan master and Work Plan field decisions are approved.
 
@@ -107,3 +110,50 @@ discovered through a dropdown endpoint. Every option list is therefore produced 
 - Deactivated or expired rows stay readable on historical plans but leave `selectable()`.
 - `resolve_selected_objectives` re-validates submitted IDs server-side, so client
   labels are never trusted.
+
+## Plan workflow
+
+One state machine in `apps/plans/workflow.py` serves both plan types:
+
+```text
+draft → submitted → under_review → approved → archived
+                 ↘ returned → resubmitted ↗
+```
+
+Only the transitions in `ALLOWED_TRANSITIONS` may run. Every transition writes an
+immutable `PlanReview` row plus an `AuditLog` entry capturing actor, previous state, new
+state and comment. Returning a plan always requires a comment. An approved plan is
+immutable: the service layer refuses writes, so a change must create a new revision.
+
+`APPROVER_ROLES` currently contains both Head and Director because section 21.2 leaves
+Head-only versus Director-final approval open. Narrowing that set is a one-line change.
+
+## Autosave and conflicts
+
+Builders autosave on a debounce, sending the revision token the page was rendered with.
+`services._check_revision` raises `RevisionConflict` when that token is stale, which the
+views translate to **409** and the UI surfaces as an explicit reload prompt. Nothing is
+merged silently — this is the mitigation the plan's risk register requires for offline
+edit conflicts.
+
+Offline, failed saves are queued in IndexedDB with a client-generated `operation_id` and
+replayed against `/api/sync/operations/` on reconnect. The endpoint is idempotent: a
+replayed ID returns `duplicate` without reapplying, and a stale `base_revision` returns
+`conflict`.
+
+## PDF rendering
+
+`apps/plans/pdf.py` renders with ReportLab at the approved page geometry — Lesson Plan
+A4 portrait, Work Plan US Letter landscape over three pages covering weeks 1 to 17.
+
+Two guarantees matter for template acceptance:
+
+1. **No annotation circles can ever appear.** Output is drawn from the field register and
+   the clean-master definition, and `_require_renderable` refuses to render a version
+   whose clean master has not been approved.
+2. **The same saved revision produces identical bytes.** The document ID and footer
+   timestamp derive from the plan and its revision rather than the wall clock, so
+   re-rendering is byte-stable and checksums are meaningful.
+
+Each render records a `GeneratedDocument` with a SHA-256 checksum and a short
+verification code printed in the metadata footer.

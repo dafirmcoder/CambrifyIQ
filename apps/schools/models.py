@@ -200,6 +200,60 @@ class Term(TimeStampedModel):
         return f"{self.academic_year.name} · {self.name}"
 
 
+class CalendarWeek(TimeStampedModel):
+    """A numbered teaching week inside a term.
+
+    The Work Plan renders one row per week (plan 7.2 and 8.3). Weeks are
+    generated from the term date range so the three-page sample structure of
+    weeks 1 to 17 is reproducible, and each row keeps its own label so an
+    approved plan stays readable even if the calendar is later regenerated.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="calendar_weeks")
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name="weeks")
+    number = models.PositiveSmallIntegerField()
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    month_label = models.CharField(max_length=40, blank=True)
+    event_label = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Fixed calendar event, for example Revision Week.",
+    )
+    is_teaching_week = models.BooleanField(default=True)
+
+    objects = SchoolScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("term", "number")
+        constraints = [
+            models.UniqueConstraint(fields=("term", "number"), name="unique_term_week_number"),
+            models.CheckConstraint(
+                condition=Q(ends_on__gte=models.F("starts_on")), name="week_ends_after_start"
+            ),
+        ]
+        indexes = [models.Index(fields=("school", "term", "number"))]
+
+    @property
+    def label(self):
+        return f"Week {self.number}"
+
+    @property
+    def date_range_label(self):
+        if self.starts_on.month == self.ends_on.month:
+            return f"{self.starts_on:%-d} - {self.ends_on:%-d} {self.ends_on:%B}"
+        return f"{self.starts_on:%-d %b} - {self.ends_on:%-d %b}"
+
+    def clean(self):
+        if self.term_id and self.term.school_id != self.school_id:
+            raise ValidationError("The term must belong to the same school.")
+
+    def __str__(self):
+        return f"{self.term.name} · Week {self.number}"
+
+
 class Subject(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")

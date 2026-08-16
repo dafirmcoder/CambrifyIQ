@@ -1,6 +1,13 @@
-const CACHE = 'cambrify-shell-v1';
+const CACHE = 'cambrify-shell-v2';
 const OFFLINE = '/static/offline.html';
-const SHELL = ['/static/css/app.css', '/static/js/app.js', '/static/img/mark.svg', OFFLINE];
+const SHELL = [
+  '/static/css/app.css',
+  '/static/js/app.js',
+  '/static/js/builder.js',
+  '/static/js/offline-queue.js',
+  '/static/img/mark.svg',
+  OFFLINE
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

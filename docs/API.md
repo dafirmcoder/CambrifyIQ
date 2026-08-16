@@ -62,6 +62,45 @@ Returns the immutable field map: every field ID with its annotation `kind`
 (`red`, `blue` or `system`), control type, required flag, bounds, measured PDF `box` in
 points and approved `overflow_policy`. Versions belonging to another school return `404`.
 
+## Plans
+
+`{kind}` is `work-plans` or `lesson-plans`.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET/POST | `/api/{kind}/` | List visible plans, or create one |
+| GET/PATCH | `/api/{kind}/{id}/` | Read, or autosave with a revision token |
+| POST | `/api/{kind}/{id}/{submit\|review\|return\|approve\|archive}/` | Workflow transition |
+| GET | `/api/{kind}/{id}/pdf/` | Render the PDF and record its checksum |
+
+Teachers see only their own plans; leadership sees the whole school. A `PATCH` carrying a
+stale `revision` returns **409 Conflict** with the current revision rather than
+overwriting a newer edit. Returning a plan requires a non-empty `comment`.
+
+## Offline sync
+
+### `POST /api/sync/operations/`
+
+Replays a queued batch. Each operation carries a client-generated `operation_id`, the
+`base_revision` it was composed against and a payload.
+
+```json
+{"operations": [{"operation_id": "uuid", "name": "lesson_plan.save",
+  "plan_id": "uuid", "base_revision": 3, "payload": {"notes_remarks": "..."}}]}
+```
+
+Each result is `applied`, `duplicate` (a replay of an ID already seen), `conflict` (stale
+revision, needing explicit resolution) or `rejected`. A batch containing any conflict
+responds **207 Multi-Status**.
+
+## Dashboards
+
+### `GET /api/dashboard/{role}/`
+
+Role KPIs: plan counts by state, curriculum coverage per subject and class, and — for
+leadership — pending review counts, overdue ageing, completion rate and turnaround days.
+Requesting a role other than your own returns `403`.
+
 ## Errors
 
 Errors have one envelope:

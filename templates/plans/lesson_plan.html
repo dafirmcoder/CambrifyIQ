@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Lesson plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Lesson plan</p>
+      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+      <p>{{ plan.lesson_date|date:"l j F Y" }} · template v{{ plan.template_version.version }} · revision <span data-revision-label>{{ plan.revision }}</span></p>
+    </div>
+    <div class="header-buttons">
+      <a class="button button--secondary" href="{% url 'plans:pdf' 'lesson' plan.pk %}" target="_blank" rel="noopener">Preview PDF</a>
+      <a class="button button--ghost" href="{% url 'plans:pdf' 'lesson' plan.pk %}?download=1">Download</a>
+    </div>
+  </header>
+
+  <div class="builder-grid">
+    <form class="panel builder-form"
+          data-autosave-url="{% url 'plans:save_lesson_plan' plan.pk %}"
+          data-plan-id="{{ plan.pk }}"
+          data-revision="{{ plan.revision }}"
+          {% if not can_edit %}data-readonly="true"{% endif %}>
+      {% csrf_token %}
+      <header class="panel__header">
+        <h2>Builder</h2>
+        <span class="save-state" data-save-state aria-live="polite">{% if can_edit %}All changes saved{% else %}Read only{% endif %}</span>
+      </header>
+      <div class="panel__body">
+        <fieldset {% if not can_edit %}disabled{% endif %}>
+          <legend class="sr-only">Lesson plan fields</legend>
+
+          <div class="field-row">
+            <div class="field">
+              <span class="field-tag field-tag--system">LP-S02 · system</span>
+              <label for="lp-subject">Subject</label>
+              <input id="lp-subject" type="text" value="{{ plan.assignment.subject.name }}" readonly>
+              <span class="helptext">Read-only from your teaching assignment.</span>
+            </div>
+            <div class="field">
+              <span class="field-tag field-tag--system">LP-S03 · system</span>
+              <label for="lp-date">Date</label>
+              <input id="lp-date" type="text" value="{{ plan.lesson_date|date:'j F Y' }}" readonly>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-tag field-tag--red">LP-D01 · controlled</span>
+            <label for="lp-subtopic">Unit / sub-unit</label>
+            <select id="lp-subtopic" name="subtopic" data-autosave>
+              <option value="">Select a unit…</option>
+              {% for topic in topics %}
+              <optgroup label="{{ topic.code }} — {{ topic.title }}">
+                {% for sub in topic.subtopics.all %}
+                <option value="{{ sub.pk }}" {% if plan.subtopic_id == sub.pk %}selected{% endif %}>{{ sub.code }} — {{ sub.title }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endfor %}
+            </select>
+            <span class="helptext">Only units from schemes matching your active assignment appear here.</span>
+          </div>
+
+          <div class="field">
+            <span class="field-tag field-tag--red">LP-D04 · controlled</span>
+            <label for="lp-objectives">Learning objectives</label>
+            <select id="lp-objectives" name="objectives" multiple size="5" data-autosave>
+              {% for objective in objectives %}
+              <option value="{{ objective.pk }}" {% if objective.pk|stringformat:'s' in selected_objective_ids %}selected{% endif %}>{{ objective.code }} — {{ objective.text }}</option>
+              {% endfor %}
+            </select>
+            {% if not objectives %}<span class="helptext">Choose a unit first to load its objectives.</span>{% endif %}
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <span class="field-tag field-tag--red">LP-D02 · controlled</span>
+              <label for="lp-boys">Attendance: boys</label>
+              <input id="lp-boys" type="number" name="boys_present" min="0" max="{{ boys_max }}"
+                     value="{{ plan.boys_present|default_if_none:'' }}" data-autosave>
+              <span class="helptext">0 to {{ boys_max }} on the class roster.</span>
+            </div>
+            <div class="field">
+              <span class="field-tag field-tag--red">LP-D03 · controlled</span>
+              <label for="lp-girls">Attendance: girls</label>
+              <input id="lp-girls" type="number" name="girls_present" min="0" max="{{ girls_max }}"
+                     value="{{ plan.girls_present|default_if_none:'' }}" data-autosave>
+              <span class="helptext">0 to {{ girls_max }} on the class roster.</span>
+            </div>
+            <div class="field">
+              <span class="field-tag field-tag--system">LP-S04 · computed</span>
+              <label for="lp-total">Total present</label>
+              <input id="lp-total" type="text" data-attendance-total value="{{ plan.attendance_total|default_if_none:'—' }}" readonly>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-tag field-tag--blue">LP-T01 · free text · required</span>
+            <label for="lp-activity">Main teaching activity</label>
+            <textarea id="lp-activity" name="main_teaching_activity" rows="7" data-autosave
+                     >{{ plan.main_teaching_activity }}</textarea>
+          </div>
+
+          <div class="field">
+            <span class="field-tag field-tag--blue">LP-T02 · free text · required</span>
+            <label for="lp-assessment">Assessment ideas</label>
+            <textarea id="lp-assessment" name="assessment_ideas" rows="6" data-autosave>{{ plan.assessment_ideas }}</textarea>
+          </div>
+
+          <div class="field">
+            <span class="field-tag field-tag--blue">LP-T03 · free text · optional</span>
+            <label for="lp-notes">Notes / remarks</label>
+            <textarea id="lp-notes" name="notes_remarks" rows="4" data-autosave>{{ plan.notes_remarks }}</textarea>
+          </div>
+        </fieldset>
+      </div>
+    </form>
+
+    <aside class="builder-aside">
+      {% include "plans/_workflow.html" with kind='lesson' %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/builder.js' %}" defer></script>{% endblock %}

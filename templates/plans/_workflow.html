@@ -1,0 +1,64 @@
+{% comment %}
+Shared workflow panel: status, permitted actions and the immutable history.
+Section 7.5 requires a mandatory comment when returning a plan.
+{% endcomment %}
+<section class="panel">
+  <header class="panel__header">
+    <h2>Workflow</h2>
+    <span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span>
+  </header>
+  <div class="panel__body">
+    {% if issues %}
+    <div class="callout callout--warning">
+      <strong>{{ issues|length }} item{{ issues|pluralize }} still needed before submission</strong>
+      <ul>{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+    </div>
+    {% elif plan.is_editable %}
+    <div class="callout callout--ok"><strong>All required fields are complete.</strong></div>
+    {% endif %}
+
+    {% if warnings %}
+    <div class="callout callout--info">
+      <strong>Overflow guidance</strong>
+      <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% if plan.state == 'approved' %}
+    <p class="muted">Approved on {{ plan.approved_at|date:"j M Y H:i" }} by {{ plan.approved_by.get_short_name }}. This version is locked; further changes need a new revision.</p>
+    {% endif %}
+
+    <div class="workflow-actions">
+      {% for action in actions %}
+      <form method="post" action="{% url 'plans:transition' kind plan.pk action %}" class="workflow-form">
+        {% csrf_token %}
+        {% if action == 'return' %}
+        <label class="sr-only" for="return-comment">Reason for returning</label>
+        <input id="return-comment" type="text" name="comment" placeholder="Reason for returning (required)" required>
+        {% endif %}
+        <button class="button {% if action == 'approve' %}button--primary{% elif action == 'return' %}button--danger{% else %}button--secondary{% endif %} button--small" type="submit">
+          {% if action == 'submit' %}Submit for review
+          {% elif action == 'claim' %}Start review
+          {% elif action == 'return' %}Return
+          {% elif action == 'approve' %}Approve
+          {% else %}Archive{% endif %}
+        </button>
+      </form>
+      {% empty %}
+      <p class="muted">No workflow actions are available to you for this plan right now.</p>
+      {% endfor %}
+    </div>
+
+    {% if history %}
+    <ol class="timeline">
+      {% for entry in history %}
+      <li>
+        <strong>{{ entry.get_action_display }}</strong>
+        <small>{{ entry.actor.get_short_name|default:"System" }} · {{ entry.created_at|date:"j M Y H:i" }}</small>
+        {% if entry.comment %}<p>{{ entry.comment }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+  </div>
+</section>

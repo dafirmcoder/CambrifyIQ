@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Work plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell page-shell--wide">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Semester work plan</p>
+      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+      <p>{{ plan.academic_year.name }} · {{ plan.term.name }} · template v{{ plan.template_version.version }} · revision <span data-revision-label>{{ plan.revision }}</span></p>
+    </div>
+    <div class="header-buttons">
+      <a class="button button--secondary" href="{% url 'plans:pdf' 'work' plan.pk %}" target="_blank" rel="noopener">Preview PDF</a>
+      <a class="button button--ghost" href="{% url 'plans:pdf' 'work' plan.pk %}?download=1">Download</a>
+    </div>
+  </header>
+
+  <div class="builder-grid">
+    <div>
+      <section class="panel" data-revision="{{ plan.revision }}" data-plan-root>
+        <header class="panel__header">
+          <h2>Weeks 1–{{ rows|length }}</h2>
+          <span class="save-state" data-save-state aria-live="polite">{% if can_edit %}All changes saved{% else %}Read only{% endif %}</span>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table data-table--builder">
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Week</th>
+                <th scope="col"><span class="field-tag field-tag--red">WP-D08</span> Topic / learning objective</th>
+                <th scope="col"><span class="field-tag field-tag--blue">WP-T01</span> Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr class="{% if row.is_special_week %}row--event{% endif %}"
+                  data-row-url="{% url 'plans:save_work_plan_row' plan.pk row.pk %}"
+                  data-plan-id="{{ plan.pk }}" data-row-id="{{ row.pk }}">
+                <td>{{ row.month_label }}</td>
+                <td><strong>Week {{ row.week_number }}</strong><small>{{ row.week_label }}</small></td>
+                <td>
+                  {% if row.event_label %}<span class="event-chip">{{ row.event_label }}</span>{% endif %}
+                  <select name="objectives" multiple size="3" data-row-field aria-label="Objectives for week {{ row.week_number }}" {% if not can_edit %}disabled{% endif %}>
+                    {% for objective in row.available_objectives %}
+                    <option value="{{ objective.pk }}" {% if objective.pk|stringformat:'s' in row.selected_objective_ids %}selected{% endif %}>{{ objective.code }} — {{ objective.text|truncatechars:60 }}</option>
+                    {% endfor %}
+                  </select>
+                  <ul class="objective-list">{% for label in row.objective_labels %}<li>{{ label }}</li>{% endfor %}</ul>
+                </td>
+                <td>
+                  <textarea name="remarks" rows="2" data-row-field aria-label="Remarks for week {{ row.week_number }}" {% if not can_edit %}disabled{% endif %}>{{ row.remarks }}</textarea>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel__header"><h2><span class="field-tag field-tag--blue">WP-T02</span> Resources</h2></header>
+        <div class="panel__body">
+          <form data-resources-url="{% url 'plans:save_work_plan_resources' plan.pk %}" data-plan-id="{{ plan.pk }}">
+            {% csrf_token %}
+            <label class="sr-only" for="wp-resources">Resources</label>
+            <textarea id="wp-resources" name="resources" rows="4" data-autosave {% if not can_edit %}disabled{% endif %}>{{ plan.resources }}</textarea>
+            <span class="helptext">Printed on page three of the approved layout.</span>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <aside class="builder-aside">
+      {% include "plans/_workflow.html" with kind='work' %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/builder.js' %}" defer></script>{% endblock %}

@@ -3,32 +3,123 @@
 {% block content %}
 <div class="page-shell">
   <header class="page-header">
-    <div><span class="role-chip">{{ active_membership.get_role_display }}</span><h1>Good day, {{ user.get_short_name }}</h1><p>Here is what is happening at {{ active_school.name }}.</p></div>
-    {% if is_leader %}<a class="button button--primary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
+    <div>
+      <span class="role-chip">{{ active_membership.get_role_display }}</span>
+      <h1>Good day, {{ user.get_short_name }}</h1>
+      <p>Here is what is happening at {{ active_school.name }}.</p>
+    </div>
+    <div class="header-buttons">
+      <a class="button button--primary" href="{% url 'plans:list' %}">Go to plans</a>
+      {% if is_leader %}<a class="button button--secondary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
+    </div>
   </header>
+
   <section class="stats-grid" aria-label="School summary">
     {% if is_teacher %}
-      <article class="stat-card"><div class="stat-card__label">Active assignments</div><div class="stat-card__value">{{ stats.assignments }}</div><div class="stat-card__hint">Scoped to today</div></article>
-      <article class="stat-card"><div class="stat-card__label">Draft plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
-      <article class="stat-card"><div class="stat-card__label">Returned plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
-      <article class="stat-card"><div class="stat-card__label">Approved plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
+      <article class="stat-card"><div class="stat-card__label">Active assignments</div><div class="stat-card__value">{{ summary.assignments }}</div><div class="stat-card__hint">Scoped to today</div></article>
+      <article class="stat-card"><div class="stat-card__label">Drafts in progress</div><div class="stat-card__value">{{ summary.drafts }}</div><div class="stat-card__hint">Work and lesson plans</div></article>
+      <article class="stat-card"><div class="stat-card__label">Returned to you</div><div class="stat-card__value">{{ summary.returned }}</div><div class="stat-card__hint">Needs changes</div></article>
+      <article class="stat-card"><div class="stat-card__label">Approved</div><div class="stat-card__value">{{ summary.approved }}</div><div class="stat-card__hint">Locked and downloadable</div></article>
     {% else %}
+      <article class="stat-card"><div class="stat-card__label">Awaiting review</div><div class="stat-card__value">{{ pending.total }}</div><div class="stat-card__hint">{{ pending.overdue }} overdue past 7 days</div></article>
+      <article class="stat-card"><div class="stat-card__label">Completion</div><div class="stat-card__value">{{ completion }}%</div><div class="stat-card__hint">Plans reaching approval</div></article>
+      <article class="stat-card"><div class="stat-card__label">Turnaround</div><div class="stat-card__value">{% if turnaround %}{{ turnaround }}d{% else %}—{% endif %}</div><div class="stat-card__hint">Submission to approval</div></article>
       <article class="stat-card"><div class="stat-card__label">Active team</div><div class="stat-card__value">{{ stats.team_members }}</div><div class="stat-card__hint">Across four school roles</div></article>
-      <article class="stat-card"><div class="stat-card__label">Subjects</div><div class="stat-card__value">{{ stats.subjects }}</div><div class="stat-card__hint">Active school catalogue</div></article>
-      <article class="stat-card"><div class="stat-card__label">Classes</div><div class="stat-card__value">{{ stats.classes }}</div><div class="stat-card__hint">Active teaching groups</div></article>
-      <article class="stat-card"><div class="stat-card__label">Pending invitations</div><div class="stat-card__value">{{ stats.pending_invites }}</div><div class="stat-card__hint">Expire after seven days</div></article>
     {% endif %}
   </section>
+
   <div class="dashboard-grid">
-    <section class="panel">
-      <header class="panel__header"><h2>{% if is_teacher %}My teaching assignments{% else %}Planning activity{% endif %}</h2></header>
-      {% if assignments %}
-      <div class="panel__body"><ul class="assignment-list">{% for assignment in assignments %}<li><span class="assignment-code">{{ assignment.subject.code|truncatechars:5 }}</span><div><strong>{{ assignment.subject.name }}</strong><small>{{ assignment.school_class.name }} · from {{ assignment.effective_from|date:"j M Y" }}</small></div></li>{% endfor %}</ul></div>
-      {% else %}
-      <div class="empty-state"><div class="empty-state__icon">◇</div><h3>{% if is_teacher %}No active assignment yet{% else %}Planning modules are next{% endif %}</h3><p>{% if is_teacher %}A school leader or coordinator needs to assign a subject and class before planning options become available.{% else %}The tenant, access and assignment foundation is ready. Curriculum and plan workflows follow in the next milestones.{% endif %}</p></div>
+    <div class="stack-panels">
+      {% if action_needed %}
+      <section class="panel">
+        <header class="panel__header"><h2>Needs your attention</h2></header>
+        <div class="panel__body">
+          <ul class="assignment-list">
+            {% for plan in action_needed %}
+            <li>
+              <span class="assignment-code">RET</span>
+              <div><strong>{{ plan.assignment.subject.name }} · {{ plan.lesson_date|date:"j M" }}</strong><small>Returned for changes</small></div>
+              <a class="button button--secondary button--small" href="{% url 'plans:lesson_plan' plan.pk %}">Open</a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
       {% endif %}
-    </section>
-    <aside>
+
+      <section class="panel">
+        <header class="panel__header">
+          <h2>Curriculum coverage</h2>
+          {% if not is_teacher %}<small class="muted">Lowest first</small>{% endif %}
+        </header>
+        {% if coverage %}
+        <div class="panel__body">
+          <ul class="coverage-list">
+            {% for row in coverage %}
+            <li>
+              <div class="coverage-head">
+                <strong>{{ row.subject }} · {{ row.class_name }}</strong>
+                <span>{{ row.planned }}/{{ row.available }} objectives · {{ row.percent }}%</span>
+              </div>
+              <div class="progress"><span style="width: {{ row.percent }}%"></span></div>
+              {% if not is_teacher %}<small class="muted">{{ row.teacher }}</small>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state__icon">◇</div>
+          <h3>No coverage data yet</h3>
+          <p>Publish a scheme of work and plan some weeks to see curriculum coverage here.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <header class="panel__header"><h2>{% if is_teacher %}My recent lesson plans{% else %}Recent lesson plans{% endif %}</h2><a href="{% url 'plans:list' %}">View all</a></header>
+        {% if recent_plans %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Lesson</th><th>Date</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {% for plan in recent_plans %}
+              <tr>
+                <td><strong>{{ plan.assignment.subject.name }}</strong><small>{{ plan.assignment.school_class.name }}</small></td>
+                <td>{{ plan.lesson_date|date:"j M Y" }}</td>
+                <td><span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span></td>
+                <td class="row-actions"><a class="button button--secondary button--small" href="{% url 'plans:lesson_plan' plan.pk %}">Open</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-state__icon">◇</div>
+          <h3>No lesson plans yet</h3>
+          <p>{% if is_teacher %}Create your first lesson plan from the plans page.{% else %}Teachers have not created any lesson plans yet.{% endif %}</p>
+          <a class="button button--primary" href="{% url 'plans:list' %}">Go to plans</a>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="stack-panels">
+      {% if content %}
+      <section class="panel">
+        <header class="panel__header"><h2>Content health</h2></header>
+        <div class="panel__body">
+          <ul class="kpi-list">
+            <li><span>Published schemes</span><strong>{{ content.published }}</strong></li>
+            <li><span>Draft schemes</span><strong>{{ content.drafts }}</strong></li>
+            <li><span>Active objectives</span><strong>{{ content.objectives }}</strong></li>
+            <li><span>Schemes without topics</span><strong>{{ content.schemes_without_topics }}</strong></li>
+          </ul>
+        </div>
+      </section>
+      {% endif %}
+
       <section class="panel">
         <header class="panel__header"><h2>School readiness</h2><strong>{{ setup_percent }}%</strong></header>
         <div class="panel__body">
@@ -41,9 +132,23 @@
             <li class="{% if setup.team %}is-done{% endif %}"><span class="checklist__mark">{% if setup.team %}✓{% else %}5{% endif %}</span>Invite your team</li>
           </ul>
           {% if is_leader %}<a class="button button--secondary button--small" href="{% url 'schools:settings' %}">Continue school setup</a>{% endif %}
-          <div class="next-module"><strong>Foundation release</strong><small>Approved template builders, workflows and PDFs are deliberately staged for the plan modules.</small></div>
         </div>
       </section>
+
+      {% if documents %}
+      <section class="panel">
+        <header class="panel__header"><h2>Recent documents</h2></header>
+        <div class="panel__body">
+          <ul class="doc-list">
+            {% for doc in documents %}
+            <li>
+              <div><strong>{{ doc.get_plan_type_display|default:doc.plan_type }}</strong><small>{{ doc.generated_at|date:"j M Y H:i" }} · verify {{ doc.verification_code }}</small></div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+      {% endif %}
     </aside>
   </div>
 </div>

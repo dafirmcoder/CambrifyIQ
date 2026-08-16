@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Review queue · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Leadership</p>
+      <h1>Review queue</h1>
+      <p>Plans awaiting a decision. Your own plans never appear here.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <header class="panel__header"><h2>Lesson plans awaiting review</h2><strong>{{ lesson_plans|length }}</strong></header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Lesson</th><th>Teacher</th><th>Date</th><th>Status</th><th>Waiting</th><th></th></tr></thead>
+        <tbody>
+          {% for plan in lesson_plans %}
+          <tr>
+            <td><strong>{{ plan.assignment.subject.name }}</strong><small>{{ plan.assignment.school_class.name }}</small></td>
+            <td>{{ plan.author.get_short_name }}</td>
+            <td>{{ plan.lesson_date|date:"j M Y" }}</td>
+            <td><span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span></td>
+            <td>{{ plan.submitted_at|timesince|default:"—" }}</td>
+            <td class="row-actions"><a class="button button--primary button--small" href="{% url 'plans:lesson_plan' plan.pk %}">Review</a></td>
+          </tr>
+          {% empty %}<tr><td colspan="6" class="muted">Nothing awaiting review.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header class="panel__header"><h2>Work plans awaiting review</h2><strong>{{ work_plans|length }}</strong></header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Plan</th><th>Teacher</th><th>Semester</th><th>Status</th><th>Waiting</th><th></th></tr></thead>
+        <tbody>
+          {% for plan in work_plans %}
+          <tr>
+            <td><strong>{{ plan.assignment.subject.name }}</strong><small>{{ plan.assignment.school_class.name }}</small></td>
+            <td>{{ plan.author.get_short_name }}</td>
+            <td>{{ plan.term.name }}</td>
+            <td><span class="status status--{{ plan.state }}">{{ plan.get_state_display }}</span></td>
+            <td>{{ plan.submitted_at|timesince|default:"—" }}</td>
+            <td class="row-actions"><a class="button button--primary button--small" href="{% url 'plans:work_plan' plan.pk %}">Review</a></td>
+          </tr>
+          {% empty %}<tr><td colspan="6" class="muted">Nothing awaiting review.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

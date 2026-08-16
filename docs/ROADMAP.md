@@ -73,21 +73,46 @@ Remaining for this phase: the school setup UI for academic years, semesters, wee
 subjects, classes and assignments, XLSX import alongside CSV, and the complete RLS
 policy test suite.
 
-## Phase 2: Semester Work Plans
+## Completed: Phase 2 Semester Work Plans
 
-- Calendar-generated weeks 1–17 and special events.
-- Scoped Topic/LO controls, remarks and resources.
-- Revision-token autosave, draft validation and three-page landscape renderer.
-- Submit/review/return/resubmit/approve/archive workflow.
+- `CalendarWeek` generation from term dates, capped at the approved 17 weeks, with the
+  fixed events preserved for weeks 15 to 17.
+- Work Plan builder with scoped Topic/LO pickers, per-week remarks and the page-three
+  resources area.
+- Revision-token autosave with explicit conflict responses instead of last-write-wins.
+- Three-page US Letter landscape renderer matching the approved sample structure.
+- Full submit / review / return / resubmit / approve / archive workflow.
 
-## Phase 3: Lesson Plans
+## Completed: Phase 3 Lesson Plans
 
-- Exact LP-D01–LP-D04 controlled fields and LP-T01–LP-T03 text fields.
-- Assignment/Work Plan carry-forward and roster-backed attendance.
-- Clean A4 PDF overlay, overflow rules and visual regression.
+- All four LP-D controlled fields and three LP-T text fields wired to the builder.
+- Roster-backed attendance with bounds, computed total and audited over-roster exceptions.
+- Work Plan row carry-forward of assignment, unit and objectives.
+- One-page A4 renderer with deterministic wrapping and byte-identical re-rendering.
 
-## Later phases
+## Completed: Phase 4 Leadership and reporting
 
-Leadership reporting, protected object storage, notifications, conflict-aware offline
-drafts, PWA hardening, Android TWA packaging, four-role UAT and production launch
-hardening follow the approved plan.
+- Role dashboards for Teacher, Coordinator, Head and Director.
+- Curriculum coverage per subject and class, completion rate, approval turnaround,
+  overdue queue ageing and content-health metrics.
+- `GET /api/dashboard/{role}/`, locked to the caller's own role.
+
+## Completed: Phase 5 PWA and offline
+
+- Service worker shell caching for the builder assets.
+- IndexedDB draft queue with client-generated operation IDs and device IDs.
+- `POST /api/sync/operations/` applies batches idempotently: replays return
+  `duplicate`, stale revisions return `conflict` for explicit resolution, and a batch
+  with conflicts responds `207 Multi-Status`.
+- Local drafts are purged on sign-out.
+
+## Remaining before launch
+
+- **Android TWA packaging** — needs a Play Console account and signing key.
+- **Protected object storage** — generated PDFs currently stream from the renderer and
+  record a checksum; moving the bytes to Supabase Storage or S3 needs bucket credentials.
+- **Notifications** — submission, review-assignment, return and approval emails need the
+  school's SMTP or provider credentials.
+- **XLSX import** alongside the delivered CSV import.
+- **Visual regression** against the real clean master, once supplied.
+- **Four-role UAT** and the Template Acceptance Record signatures.
