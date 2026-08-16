@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign in · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="auth-layout">
+  <aside class="auth-aside">
+    <a class="brand" href="/"><span class="brand__mark">C</span><span>Cambrify<span>IQ</span></span></a>
+    <div class="auth-quote"><p class="eyebrow">Welcome back</p><h1>Keep every plan aligned, reviewed and ready.</h1><p>Your school's authorised curriculum and planning workspace is one secure sign-in away.</p></div>
+    <div class="auth-proof"><span>Tenant isolated</span><span>Role protected</span><span>Audit ready</span></div>
+  </aside>
+  <section class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-card__mobile-brand" href="/"><span class="brand__mark">C</span><span>Cambrify<span>IQ</span></span></a>
+      <p class="eyebrow">School workspace</p><h1>Sign in</h1><p>Use the email address connected to your school.</p>
+      <form method="post" class="form-stack" novalidate>{% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        {{ form.as_p }}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <button class="button button--primary" type="submit">Sign in</button>
+      </form>
+      <p class="auth-foot">Setting up a new school? <a href="{% url 'accounts:create_school' %}">Create a workspace</a></p>
+    </div>
+  </section>
+</div>
+{% endblock %}
