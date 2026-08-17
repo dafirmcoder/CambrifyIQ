@@ -3,6 +3,7 @@ from django.contrib import admin
 from apps.schools.models import (
     AcademicYear,
     AuditLog,
+    CalendarWeek,
     Invitation,
     Membership,
     School,
@@ -49,4 +50,4 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
 
-admin.site.register([AcademicYear, Invitation, SchoolClass, Subject, Term])
+admin.site.register([AcademicYear, CalendarWeek, Invitation, SchoolClass, Subject, Term])

@@ -200,6 +200,44 @@ class Term(TimeStampedModel):
         return f"{self.academic_year.name} · {self.name}"
 
 
+class CalendarWeek(TimeStampedModel):
+    """A school-defined teaching or special-event week within a term."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="calendar_weeks")
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, related_name="calendar_weeks")
+    sequence = models.PositiveSmallIntegerField()
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    month_label = models.CharField(max_length=32, blank=True)
+    event_label = models.CharField(max_length=160, blank=True)
+    is_instructional = models.BooleanField(default=True)
+
+    objects = SchoolScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("term", "sequence")
+        constraints = [
+            models.UniqueConstraint(fields=("term", "sequence"), name="unique_term_calendar_week"),
+            models.CheckConstraint(
+                condition=Q(ends_on__gte=models.F("starts_on")), name="calendar_week_valid_dates"
+            ),
+        ]
+        indexes = [models.Index(fields=("school", "term", "sequence"))]
+
+    def clean(self):
+        if self.term_id and self.school_id != self.term.school_id:
+            raise ValidationError({"term": "The term must belong to the same school."})
+
+    @property
+    def label(self):
+        return f"Week {self.sequence}: {self.starts_on:%d %b}–{self.ends_on:%d %b}"
+
+    def __str__(self):
+        return self.label
+
+
 class Subject(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")

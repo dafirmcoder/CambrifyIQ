@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Semester Work Plans · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header"><div><span class="role-chip">Planning</span><h1>Semester Work Plans</h1><p>Create a plan from an active assignment, approved template, curriculum scheme and school calendar.</p></div></header>
+  <section class="panel"><header class="panel__header"><h2>New Work Plan</h2></header><div class="panel__body">
+    <form method="post">{% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}<p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}
+      <button class="button button--primary" type="submit">Create draft</button>
+    </form>
+  </div></section>
+  <section class="panel"><header class="panel__header"><h2>My plans</h2></header>
+    {% if plans %}<div class="panel__body"><ul class="assignment-list">{% for plan in plans %}<li><span class="assignment-code">{{ plan.get_status_display }}</span><div><strong><a href="{% url 'planning:work_plan_detail' plan.pk %}">{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</a></strong><small>{{ plan.term.name }} · updated {{ plan.updated_at|date:"j M Y, H:i" }}</small></div></li>{% endfor %}</ul></div>
+    {% else %}<div class="empty-state"><h3>No Work Plans yet</h3><p>Complete the school calendar and create your first draft above.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

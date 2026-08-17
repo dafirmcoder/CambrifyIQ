@@ -4,7 +4,7 @@
 <div class="page-shell">
   <header class="page-header">
     <div><span class="role-chip">{{ active_membership.get_role_display }}</span><h1>Good day, {{ user.get_short_name }}</h1><p>Here is what is happening at {{ active_school.name }}.</p></div>
-    {% if is_leader %}<a class="button button--primary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
+    {% if is_teacher %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:work_plan_list' %}">Create Work Plan</a><a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">Create Lesson Plan</a></div>{% elif is_leader %}<a class="button button--primary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
   </header>
   <section class="stats-grid" aria-label="School summary">
     {% if is_teacher %}

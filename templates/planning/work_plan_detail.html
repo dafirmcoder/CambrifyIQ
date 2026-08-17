@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Work Plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header"><div><span class="role-chip">{{ plan.get_status_display }}</span><h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1><p>{{ plan.term.name }} · {{ plan.scheme.title }} · revision {{ plan.revision }}</p></div><div><a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}">Preview PDF</a> <a class="button button--secondary" href="{% url 'planning:work_plan_list' %}">All Work Plans</a></div></header>
+  {% if editable %}
+  <form method="post">{% csrf_token %}<input type="hidden" name="revision" value="{{ plan.revision }}">
+  {% endif %}
+  <section class="panel"><header class="panel__header"><h2>Calendar weeks</h2></header><div class="panel__body">
+    {% for week in weeks %}
+      <fieldset {% if not editable or not week.is_instructional %}disabled{% endif %}>
+        <legend>Week {{ week.sequence }} · {{ week.week_label }}{% if week.event_label %} — {{ week.event_label }}{% endif %}</legend>
+        {% if week.is_instructional %}
+          <p><label for="topic-{{ week.pk }}">Topic</label><select id="topic-{{ week.pk }}" name="week_{{ week.pk }}_topic"><option value="">Choose a curriculum topic</option>{% for topic in topics %}<option value="{{ topic.pk }}" {% if week.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>{% endfor %}</select></p>
+          <fieldset><legend>Learning objectives</legend>{% for objective in objectives %}<label><input type="checkbox" name="week_{{ week.pk }}_objectives" value="{{ objective.pk }}" {% if objective.pk|stringformat:"s" in week.selected_objective_ids %}checked{% endif %}> {{ objective.code }} — {{ objective.text }}</label><br>{% endfor %}</fieldset>
+        {% else %}<p><strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional week" }}</p>{% endif %}
+        <p><label for="remarks-{{ week.pk }}">Remarks</label><textarea id="remarks-{{ week.pk }}" name="week_{{ week.pk }}_remarks" rows="3">{{ week.remarks }}</textarea></p>
+      </fieldset>
+    {% endfor %}
+    <p><label for="resources">Resources</label><textarea id="resources" name="resources" rows="4" {% if not editable %}disabled{% endif %}>{{ plan.resources }}</textarea></p>
+  </div></section>
+  {% if editable %}<button class="button button--primary" type="submit">Save draft</button></form>
+  <form method="post" action="{% url 'planning:work_plan_submit' plan.pk %}" style="display:inline">{% csrf_token %}<button class="button button--secondary" type="submit">Submit for review</button></form>{% endif %}
+</div>
+{% endblock %}

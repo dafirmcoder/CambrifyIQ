@@ -10,6 +10,7 @@ urlpatterns = [
     path("service-worker.js", core_views.service_worker, name="service-worker"),
     path("accounts/", include("apps.accounts.urls")),
     path("school/", include("apps.schools.urls")),
+    path("planning/", include("apps.planning.urls")),
     path("dashboard/", include("apps.dashboard.urls")),
     path("api/", include("apps.api.urls")),
 ]

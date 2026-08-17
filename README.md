@@ -2,7 +2,10 @@
 
 CambrifyIQ is a multi-tenant academic planning platform for Cambridge schools. It gives teachers a guided, assignment-scoped planning workspace and gives Curriculum Coordinators, Heads of Cambridge and School Directors controlled oversight.
 
-This repository currently implements the approved **foundation milestone**. Curriculum builders, template locking, workflow and PDF rendering are staged in [`docs/ROADMAP.md`](docs/ROADMAP.md) so they can be built against approved clean templates rather than guessed layouts.
+This repository implements the approved foundation milestone plus the global
+curriculum and school-scoped planning-template data foundations. Workflows and PDF
+rendering remain staged in [`docs/ROADMAP.md`](docs/ROADMAP.md) pending approved
+clean templates rather than guessed layouts.
 
 ## Foundation features
 
@@ -11,6 +14,11 @@ This repository currently implements the approved **foundation milestone**. Curr
 - Multi-school memberships with a validated active tenant.
 - Leader-managed invitations, acceptance, roles and suspension.
 - School profile, academic year, term, subject, class and teacher-assignment models.
+- Globally administered, versioned Cambridge schemes, topics, LOs and AOs.
+- School-scoped immutable planning-template versions, fields and field options.
+- Semester Work Plan drafts with school calendar weeks, curriculum-only Topic/LO
+  selection, revision-safe autosave, auditable workflow transitions and variable
+  page counts driven by the school calendar.
 - Fail-closed school-scoped managers and transaction-local Postgres tenant context.
 - Role-aware dashboard and scoped `/api/me/assignments/` endpoint.
 - Immutable audit events and seven-day hashed invitation tokens.

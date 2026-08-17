@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Lesson Plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <span class="role-chip">{{ plan.get_status_display }}</span>
+      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+      <p>{{ plan.lesson_date|date:"j M Y" }} · {{ plan.term.name }} · {{ plan.scheme.title }} · revision {{ plan.revision }}</p>
+    </div>
+    <div>
+      <a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">All Lesson Plans</a>
+    </div>
+  </header>
+
+  {% if editable %}
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="revision" value="{{ plan.revision }}">
+  {% endif %}
+
+  <section class="panel">
+    <header class="panel__header"><h2>Lesson details</h2></header>
+    <div class="panel__body">
+      <p>
+        <label for="lesson_date">Lesson date</label>
+        <input id="lesson_date" name="lesson_date" type="date" value="{{ plan.lesson_date|date:'Y-m-d' }}" {% if not editable %}disabled{% endif %}>
+      </p>
+
+      <p>
+        <label for="topic">Topic</label>
+        <select id="topic" name="topic" {% if not editable %}disabled{% endif %}>
+          <option value="">Choose a topic</option>
+          {% for topic in topics %}
+            <option value="{{ topic.pk }}" {% if plan.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>
+          {% endfor %}
+        </select>
+      </p>
+
+      <p>
+        <label for="subtopic">Subtopic</label>
+        <select id="subtopic" name="subtopic" {% if not editable %}disabled{% endif %}>
+          <option value="">Choose an optional subtopic</option>
+          {% for subtopic in subtopics %}
+            <option value="{{ subtopic.pk }}" {% if plan.subtopic_id == subtopic.pk %}selected{% endif %}>{{ subtopic.title }}</option>
+          {% endfor %}
+        </select>
+      </p>
+
+      <div class="form-grid">
+        <p>
+          <label for="boys_attendance">Boys attendance</label>
+          <input id="boys_attendance" name="boys_attendance" type="number" min="0" value="{{ plan.boys_attendance }}" {% if not editable %}disabled{% endif %}>
+        </p>
+        <p>
+          <label for="girls_attendance">Girls attendance</label>
+          <input id="girls_attendance" name="girls_attendance" type="number" min="0" value="{{ plan.girls_attendance }}" {% if not editable %}disabled{% endif %}>
+        </p>
+      </div>
+
+      <p>
+        <label for="main_teaching_activity">Main teaching activity</label>
+        <textarea id="main_teaching_activity" name="main_teaching_activity" rows="5" {% if not editable %}disabled{% endif %}>{{ plan.main_teaching_activity }}</textarea>
+      </p>
+
+      <p>
+        <label for="assessment_ideas">Assessment ideas</label>
+        <textarea id="assessment_ideas" name="assessment_ideas" rows="5" {% if not editable %}disabled{% endif %}>{{ plan.assessment_ideas }}</textarea>
+      </p>
+
+      <p>
+        <label for="notes_remarks">Notes / remarks</label>
+        <textarea id="notes_remarks" name="notes_remarks" rows="3" {% if not editable %}disabled{% endif %}>{{ plan.notes_remarks }}</textarea>
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header class="panel__header"><h2>Learning objectives</h2></header>
+    <div class="panel__body">
+      {% for objective in objectives %}
+        <label>
+          <input type="checkbox" name="objectives" value="{{ objective.pk }}" {% if objective.pk|stringformat:'s' in plan.selected_objective_ids %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+          {{ objective.code }} — {{ objective.text }}
+        </label><br>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if editable %}
+    <button class="button button--primary" type="submit">Save draft</button>
+    </form>
+    <form method="post" action="{% url 'planning:lesson_plan_submit' plan.pk %}" style="display:inline">{% csrf_token %}
+      <button class="button button--secondary" type="submit">Submit for review</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

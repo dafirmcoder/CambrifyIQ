@@ -13,7 +13,26 @@
 - Role-aware dashboards, onboarding readiness and PWA shell/offline safety page.
 - Immutable audit events, health endpoint, Docker and deployment guidance.
 
-## Next: Phase 0 template lockdown
+## Completed: Curriculum and template-definition foundation
+
+- Global, system-administered curriculum frameworks, versioned schemes, topics,
+  subtopics, learning objectives and assessment objectives.
+- School-scoped planning templates, versioned source assets/checksums, PDF field
+  definitions and bounded field options.
+- Published/retired template versions and their definitions are immutable.
+
+## In progress: Phase 2 — Semester Work Plans
+
+- School-defined `CalendarWeek` records drive teaching weeks and special events.
+- Assignment-scoped Work Plan drafts snapshot those weeks and permit curriculum-only
+  Topic/LO selections plus free-text Remarks and Resources.
+- Revision tokens, review/return/approval transitions and audit events are implemented.
+
+The Work Plan renderer will paginate dynamically from the school calendar; the
+three-page sample is a reference, not a page-count limit. Owner-approved visual
+comparison remains pending the final field map.
+
+## Next: Template lockdown and curriculum operations
 
 This is blocked on the proposal's owner decisions and assets:
 
@@ -24,12 +43,14 @@ This is blocked on the proposal's owner decisions and assets:
 5. One-page Lesson Plan continuation policy.
 6. Head-only versus optional Director-final approval.
 
-Once supplied, add immutable `PlanningTemplate`, `TemplateVersion`, `TemplateField` and `TemplateFieldOption` models, store source checksums and build side-by-side PDF prototypes.
+The immutable `PlanningTemplate`, `TemplateVersion`, `TemplateField` and
+`TemplateFieldOption` models are in place. Once supplied, register approved source
+assets/checksums and build side-by-side PDF prototypes.
 
 ## Phase 1: Curriculum and access core
 
 - School setup UI for academic years, semesters, weeks, subjects, classes and assignments.
-- Versioned schemes, topics, subtopics, LOs and AOs.
+- System-administered global, versioned schemes, topics, subtopics, LOs and AOs.
 - Validated CSV/XLSX curriculum imports and quality reports.
 - Coordinator content permissions and complete RLS policy tests.
 
@@ -37,7 +58,7 @@ Once supplied, add immutable `PlanningTemplate`, `TemplateVersion`, `TemplateFie
 
 - Calendar-generated weeks 1–17 and special events.
 - Scoped Topic/LO controls, remarks and resources.
-- Revision-token autosave, draft validation and three-page landscape renderer.
+- Revision-token autosave, draft validation and dynamically paginated landscape renderer.
 - Submit/review/return/resubmit/approve/archive workflow.
 
 ## Phase 3: Lesson Plans

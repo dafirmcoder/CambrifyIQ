@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.schools",
+    "apps.curriculum",
+    "apps.planning",
     "apps.dashboard",
     "apps.api",
 ]
@@ -69,11 +71,9 @@ ASGI_APPLICATION = "cambrify.asgi.application"
 
 if database_url := env("DATABASE_URL", default=""):
     DATABASES = {
-        "default": env.db_url(
-            "DATABASE_URL",
-            conn_max_age=env.int("DATABASE_CONN_MAX_AGE"),
-        )
+        "default": env.db_url("DATABASE_URL")
     }
+    DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE")
     DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 else:
     # Zero-config local development and CI. Production must set DATABASE_URL.
