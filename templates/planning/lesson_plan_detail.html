@@ -9,6 +9,7 @@
       <p>{{ plan.lesson_date|date:"j M Y" }} · {{ plan.term.name }} · {{ plan.scheme.title }} · revision {{ plan.revision }}</p>
     </div>
     <div>
+      <a class="button button--secondary" href="{% url 'planning:lesson_plan_pdf' plan.pk %}">Preview PDF</a>
       <a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">All Lesson Plans</a>
     </div>
   </header>
@@ -71,6 +72,18 @@
         <label for="notes_remarks">Notes / remarks</label>
         <textarea id="notes_remarks" name="notes_remarks" rows="3" {% if not editable %}disabled{% endif %}>{{ plan.notes_remarks }}</textarea>
       </p>
+
+      <fieldset>
+        <legend>Resources</legend>
+        {% with resources=plan.resources %}
+        <label><input type="checkbox" name="resources" value="Lesson Notes" {% if "Lesson Notes" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Lesson Notes</label><br>
+        <label><input type="checkbox" name="resources" value="Projector" {% if "Projector" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Projector</label><br>
+        <label><input type="checkbox" name="resources" value="Laptop" {% if "Laptop" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Laptop</label><br>
+        <label><input type="checkbox" name="resources" value="Learner's Book" {% if "Learner's Book" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Learner's Book</label><br>
+        <label><input type="checkbox" name="resources" value="Teacher's Resource" {% if "Teacher's Resource" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Teacher's Resource</label><br>
+        <label><input type="checkbox" name="resources" value="Whiteboard/marker" {% if "Whiteboard/marker" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Whiteboard/marker</label><br>
+        {% endwith %}
+      </fieldset>
     </div>
   </section>
 

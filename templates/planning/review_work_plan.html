@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Review Work Plan A {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell" style="display: grid; grid-template-columns: 3fr 1fr; gap: 2rem;">
+  <div>
+    <header class="page-header">
+      <div>
+        <span class="role-chip">{{ plan.get_status_display }}</span>
+        <h1>{{ plan.assignment.subject.name }} A {{ plan.assignment.school_class.name }}</h1>
+        <p>Teacher: {{ plan.author.get_full_name|default:plan.author.username }}</p>
+        <p>{{ plan.term.name }} A {{ plan.scheme.title }} A revision {{ plan.revision }}</p>
+      </div>
+      <div>
+        <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}">Preview PDF</a>
+        <a class="button button--secondary" href="{% url 'planning:review_queue' %}">Back to Queue</a>
+      </div>
+    </header>
+
+    <section class="panel">
+      <header class="panel__header"><h2>Calendar weeks</h2></header>
+      <div class="panel__body">
+      {% for week in weeks %}
+        <fieldset disabled>
+          <legend>Week {{ week.sequence }} A {{ week.week_label }}{% if week.event_label %} ?" {{ week.event_label }}{% endif %}</legend>
+          {% if week.is_instructional %}
+            <p><label>Topic</label><select><option>{{ week.topic.title|default:"No topic selected" }}</option></select></p>
+            <fieldset><legend>Learning objectives</legend>
+              {% for item in week.objective_selections.all %}
+                <label><input type="checkbox" checked disabled> {{ item.code_snapshot }} ?" {{ item.text_snapshot }}</label><br>
+              {% empty %}
+                <p>No learning objectives selected.</p>
+              {% endfor %}
+            </fieldset>
+          {% else %}
+            <p><strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional week" }}</p>
+          {% endif %}
+          <p><label>Remarks</label><textarea rows="3" disabled>{{ week.remarks }}</textarea></p>
+        </fieldset>
+      {% endfor %}
+      <p><label>Resources</label><textarea rows="4" disabled>{{ plan.resources }}</textarea></p>
+      </div>
+    </section>
+  </div>
+  
+  <div>
+    <section class="panel" style="position: sticky; top: 2rem;">
+      <header class="panel__header"><h2>Leader Review</h2></header>
+      <div class="panel__body">
+        <form method="post">
+          {% csrf_token %}
+          <p>
+            <label for="comment">Review Comment</label>
+            <textarea id="comment" name="comment" rows="6" placeholder="Required if returning to teacher..."></textarea>
+          </p>
+          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+            <button class="button button--primary" type="submit" name="action" value="approve">Approve</button>
+            <button class="button button--danger" type="submit" name="action" value="return">Return</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

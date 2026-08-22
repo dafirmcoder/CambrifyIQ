@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ year.name }} · Terms · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow"><a href="{% url 'schools:academic_years' %}">Academic years</a> › {{ year.name }}</p>
+      <h1>Terms</h1>
+      <p>{{ year.starts_on|date:"j M Y" }} – {{ year.ends_on|date:"j M Y" }}</p>
+    </div>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <div>
+
+      {# Create form #}
+      <section class="form-panel" style="margin-bottom:24px">
+        <h2>Add term</h2>
+        <form method="post" novalidate>{% csrf_token %}
+          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="form-grid">
+            {% for field in form %}
+            <div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-actions"><button class="button button--primary" type="submit">Add term</button></div>
+        </form>
+      </section>
+
+      {# Term list #}
+      {% if terms %}
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Name</th><th>Dates</th><th>Active</th><th>Weeks</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for term in terms %}
+              <tr>
+                <td>{{ term.sequence }}</td>
+                <td><strong>{{ term.name }}</strong></td>
+                <td><small>{{ term.starts_on|date:"j M Y" }} – {{ term.ends_on|date:"j M Y" }}</small></td>
+                <td>{% if term.is_active %}<span class="status">Active</span>{% else %}<span class="status status--suspended">Inactive</span>{% endif %}</td>
+                <td>
+                  {% if term.week_count > 0 %}
+                    <a href="{% url 'schools:calendar_weeks' year.pk term.pk %}">{{ term.week_count }} week{{ term.week_count|pluralize }}</a>
+                  {% else %}
+                    <a href="{% url 'schools:calendar_weeks' year.pk term.pk %}" class="button button--secondary button--small">Build calendar</a>
+                  {% endif %}
+                </td>
+                <td class="table-actions">
+                  <a class="button button--secondary button--small" href="{% url 'schools:edit_term' year.pk term.pk %}">Edit</a>
+                  {% if term.week_count == 0 %}
+                  <form method="post" action="{% url 'schools:delete_term' year.pk term.pk %}" style="display:inline" onsubmit="return confirm('Delete term {{ term.name|escapejs }}?')">
+                    {% csrf_token %}<button class="button button--danger button--small" type="submit">Delete</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">📋</div>
+        <h3>No terms yet</h3>
+        <p>Add at least one term (semester) to {{ year.name }} before building the teaching calendar.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

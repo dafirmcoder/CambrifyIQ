@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Leader Review Queue{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <h1>Leader Review Queue</h1>
+      <p>Submitted plans pending your review.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <header class="panel__header">
+      <h2>Work Plans</h2>
+    </header>
+    <div class="panel__body">
+      {% if work_plans %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Teacher</th>
+            <th>Subject</th>
+            <th>Class</th>
+            <th>Term</th>
+            <th>Submitted</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plan in work_plans %}
+          <tr>
+            <td><span class="role-chip">{{ plan.get_status_display }}</span></td>
+            <td>{{ plan.author.get_full_name|default:plan.author.username }}</td>
+            <td>{{ plan.assignment.subject.name }}</td>
+            <td>{{ plan.assignment.school_class.name }}</td>
+            <td>{{ plan.term.name }}</td>
+            <td>{{ plan.submitted_at|date:"d M Y" }}</td>
+            <td><a class="button button--secondary" href="{% url 'planning:review_work_plan' plan.pk %}">Review</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>No Work Plans pending review.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <header class="panel__header">
+      <h2>Lesson Plans</h2>
+    </header>
+    <div class="panel__body">
+      {% if lesson_plans %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Teacher</th>
+            <th>Subject</th>
+            <th>Class</th>
+            <th>Date</th>
+            <th>Submitted</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plan in lesson_plans %}
+          <tr>
+            <td><span class="role-chip">{{ plan.get_status_display }}</span></td>
+            <td>{{ plan.author.get_full_name|default:plan.author.username }}</td>
+            <td>{{ plan.assignment.subject.name }}</td>
+            <td>{{ plan.assignment.school_class.name }}</td>
+            <td>{{ plan.lesson_date|date:"d M Y" }}</td>
+            <td>{{ plan.submitted_at|date:"d M Y" }}</td>
+            <td><a class="button button--secondary" href="{% url 'planning:review_lesson_plan' plan.pk %}">Review</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>No Lesson Plans pending review.</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

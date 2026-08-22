@@ -162,6 +162,11 @@ class AcademicYear(TimeStampedModel):
             models.CheckConstraint(
                 condition=Q(ends_on__gt=models.F("starts_on")), name="year_ends_after_start"
             ),
+            models.UniqueConstraint(
+                fields=("school",),
+                condition=Q(is_current=True),
+                name="unique_current_academic_year_per_school",
+            ),
         ]
 
     def __str__(self):

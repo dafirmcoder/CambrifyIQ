@@ -1,22 +1,75 @@
 {% extends "base.html" %}
+{% load core_tags %}
 {% block title %}Overview · {{ active_school.name }}{% endblock %}
 {% block content %}
 <div class="page-shell">
   <header class="page-header">
-    <div><span class="role-chip">{{ active_membership.get_role_display }}</span><h1>Good day, {{ user.get_short_name }}</h1><p>Here is what is happening at {{ active_school.name }}.</p></div>
-    {% if is_teacher %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:work_plan_list' %}">Create Work Plan</a><a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">Create Lesson Plan</a></div>{% elif is_leader %}<a class="button button--primary" href="{% url 'schools:invite' %}">Invite a team member</a>{% endif %}
+    <div class="page-header__left">
+      <span class="role-chip">{{ active_membership.get_role_display }}</span>
+      <h1>Good day, {{ user.get_short_name }}</h1>
+      <p>Here is what is happening at {{ active_school.name }}.</p>
+    </div>
+    {% if is_teacher %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:work_plan_list' %}">+ New Work Plan</a><a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">+ Lesson Plan</a></div>{% elif is_leader %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:review_queue' %}">Review Queue</a><a class="button button--secondary" href="{% url 'schools:invite' %}">Invite member</a></div>{% endif %}
   </header>
   <section class="stats-grid" aria-label="School summary">
     {% if is_teacher %}
-      <article class="stat-card"><div class="stat-card__label">Active assignments</div><div class="stat-card__value">{{ stats.assignments }}</div><div class="stat-card__hint">Scoped to today</div></article>
-      <article class="stat-card"><div class="stat-card__label">Draft plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
-      <article class="stat-card"><div class="stat-card__label">Returned plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
-      <article class="stat-card"><div class="stat-card__label">Approved plans</div><div class="stat-card__value">—</div><div class="stat-card__hint">Available in planning phase</div></article>
+      <article class="stat-card stat-card--blue">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">📚</div>
+        <div class="stat-card__label">Active Assignments</div>
+        <div class="stat-card__value">{{ stats.assignments }}</div>
+        <div class="stat-card__hint">Scoped to today</div>
+      </article>
+      <article class="stat-card stat-card--orange">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">📋</div>
+        <div class="stat-card__label">Draft Plans</div>
+        <div class="stat-card__value">—</div>
+        <div class="stat-card__hint">Available in planning phase</div>
+      </article>
+      <article class="stat-card stat-card--orange">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">↩️</div>
+        <div class="stat-card__label">Returned Plans</div>
+        <div class="stat-card__value">—</div>
+        <div class="stat-card__hint">Need your attention</div>
+      </article>
+      <article class="stat-card stat-card--green">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">✅</div>
+        <div class="stat-card__label">Approved Plans</div>
+        <div class="stat-card__value">—</div>
+        <div class="stat-card__hint">Completed this term</div>
+      </article>
     {% else %}
-      <article class="stat-card"><div class="stat-card__label">Active team</div><div class="stat-card__value">{{ stats.team_members }}</div><div class="stat-card__hint">Across four school roles</div></article>
-      <article class="stat-card"><div class="stat-card__label">Subjects</div><div class="stat-card__value">{{ stats.subjects }}</div><div class="stat-card__hint">Active school catalogue</div></article>
-      <article class="stat-card"><div class="stat-card__label">Classes</div><div class="stat-card__value">{{ stats.classes }}</div><div class="stat-card__hint">Active teaching groups</div></article>
-      <article class="stat-card"><div class="stat-card__label">Pending invitations</div><div class="stat-card__value">{{ stats.pending_invites }}</div><div class="stat-card__hint">Expire after seven days</div></article>
+      <article class="stat-card stat-card--blue">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">👥</div>
+        <div class="stat-card__label">Active Team</div>
+        <div class="stat-card__value">{{ stats.team_members }}</div>
+        <div class="stat-card__hint">Across four school roles</div>
+      </article>
+      <article class="stat-card stat-card--orange">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">📖</div>
+        <div class="stat-card__label">Subjects</div>
+        <div class="stat-card__value">{{ stats.subjects }}</div>
+        <div class="stat-card__hint">Active school catalogue</div>
+      </article>
+      <article class="stat-card stat-card--green">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">🏫</div>
+        <div class="stat-card__label">Classes</div>
+        <div class="stat-card__value">{{ stats.classes }}</div>
+        <div class="stat-card__hint">Active teaching groups</div>
+      </article>
+      <article class="stat-card stat-card--orange">
+        <div class="stat-card__accent"></div>
+        <div class="stat-card__icon">✉️</div>
+        <div class="stat-card__label">Pending Invitations</div>
+        <div class="stat-card__value">{{ stats.pending_invites }}</div>
+        <div class="stat-card__hint">Expire after seven days</div>
+      </article>
     {% endif %}
   </section>
   <div class="dashboard-grid">
@@ -34,14 +87,20 @@
         <div class="panel__body">
           <div class="progress" aria-label="{{ setup_percent }} percent complete"><span style="width: {{ setup_percent }}%"></span></div>
           <ul class="checklist">
-            <li class="{% if setup.school_profile %}is-done{% endif %}"><span class="checklist__mark">{% if setup.school_profile %}✓{% else %}1{% endif %}</span>Complete school profile</li>
-            <li class="{% if setup.academic_year %}is-done{% endif %}"><span class="checklist__mark">{% if setup.academic_year %}✓{% else %}2{% endif %}</span>Add academic year</li>
-            <li class="{% if setup.subjects %}is-done{% endif %}"><span class="checklist__mark">{% if setup.subjects %}✓{% else %}3{% endif %}</span>Add subjects</li>
-            <li class="{% if setup.classes %}is-done{% endif %}"><span class="checklist__mark">{% if setup.classes %}✓{% else %}4{% endif %}</span>Add classes</li>
-            <li class="{% if setup.team %}is-done{% endif %}"><span class="checklist__mark">{% if setup.team %}✓{% else %}5{% endif %}</span>Invite your team</li>
+            {% for key, label, step in setup_items %}
+            <li class="{% if setup|dict_get:key %}is-done{% endif %}">
+              <span class="checklist__mark">{% if setup|dict_get:key %}✓{% else %}{{ step }}{% endif %}</span>
+              {% if setup|dict_get:key %}
+                {{ label }}
+              {% elif is_leader %}
+                <a href="{{ setup_urls|dict_get:key }}">{{ label }}</a>
+              {% else %}
+                {{ label }} <small style="color:var(--ink-soft)">(ask your admin)</small>
+              {% endif %}
+            </li>
+            {% endfor %}
           </ul>
-          {% if is_leader %}<a class="button button--secondary button--small" href="{% url 'schools:settings' %}">Continue school setup</a>{% endif %}
-          <div class="next-module"><strong>Foundation release</strong><small>Approved template builders, workflows and PDFs are deliberately staged for the plan modules.</small></div>
+          {% if is_leader %}<a class="button button--secondary button--small" style="margin-top:12px" href="{% url 'schools:settings' %}">Continue school setup</a>{% endif %}
         </div>
       </section>
     </aside>

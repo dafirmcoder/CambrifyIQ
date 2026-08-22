@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ subject.name }} · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div><p class="eyebrow"><a href="{% url 'schools:subjects' %}">Subjects</a> › Edit</p><h1>Edit {{ subject.name }}</h1></div>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <section class="form-panel">
+      <h2>Subject details</h2>
+      <form method="post" novalidate>{% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-grid">
+          {% for field in form %}
+          <div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>
+          {% endfor %}
+        </div>
+        <div class="form-actions">
+          <a class="button button--secondary" href="{% url 'schools:subjects' %}">Cancel</a>
+          <button class="button button--primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

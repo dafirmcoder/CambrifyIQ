@@ -4,66 +4,207 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102a43">
+  <meta name="theme-color" content="#0b1f36">
   <meta name="description" content="Cambridge planning, aligned and accountable.">
   <title>{% block title %}CambrifyIQ{% endblock %}</title>
   <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
   <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block head %}{% endblock %}
+  <script>
+    /* Anti-flash: apply saved theme before first paint */
+    (function(){var t=localStorage.getItem('ciq-theme');document.documentElement.setAttribute('data-theme',t||'dark');})();
+  </script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main-content">Skip to content</a>
+
   {% if user.is_authenticated %}
-  <header class="app-header">
-    <a class="brand brand--app" href="{% url 'dashboard:home' %}" aria-label="CambrifyIQ dashboard">
-      <span class="brand__mark">C</span>
-      <span>Cambrify<span>IQ</span></span>
-    </a>
-    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
-    <nav class="app-nav" id="primary-nav" aria-label="Primary navigation">
-      <a href="{% url 'dashboard:home' %}" {% if request.resolver_match.namespace == 'dashboard' %}aria-current="page"{% endif %}>Overview</a>
-      {% if active_membership.can_manage_users %}
-      <a href="{% url 'schools:team' %}" {% if request.resolver_match.url_name == 'team' %}aria-current="page"{% endif %}>People</a>
-      <a href="{% url 'schools:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>School setup</a>
-      {% endif %}
-    </nav>
-    <div class="header-actions">
+  <div class="app-shell">
+
+    {# ── Sidebar ── #}
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Primary navigation">
+      <div class="sidebar-header">
+        <a class="brand brand--light" href="{% url 'dashboard:home' %}" aria-label="CambrifyIQ dashboard">
+          <span class="brand__mark">C</span>
+          <span class="brand__wordmark">Cambrify<span>IQ</span></span>
+        </a>
+      </div>
+
       {% if school_memberships|length > 1 %}
-      <details class="school-switcher">
-        <summary>{{ active_school.name|truncatechars:24 }}</summary>
-        <div class="switcher-menu">
-          {% for item in school_memberships %}
-          <form method="post" action="{% url 'schools:switch' item.school_id %}">
-            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" {% if item.school_id == active_school.id %}aria-current="true"{% endif %}>{{ item.school.name }}<small>{{ item.get_role_display }}</small></button>
-          </form>
-          {% endfor %}
-        </div>
-      </details>
+      <div class="sidebar-school">
+        <details>
+          <summary>
+            <span class="sidebar-school__name">{{ active_school.name|truncatechars:22 }}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </summary>
+          <div class="switcher-menu">
+            {% for item in school_memberships %}
+            <form method="post" action="{% url 'schools:switch' item.school_id %}">
+              {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" {% if item.school_id == active_school.id %}aria-current="true"{% endif %}>
+                {{ item.school.name }}<small>{{ item.get_role_display }}</small>
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
       {% else %}
-      <div class="school-label"><span>{{ active_school.name|default:"No school"|truncatechars:24 }}</span><small>{{ active_membership.get_role_display }}</small></div>
+      <div style="padding: 0 18px 14px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.38); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        {{ active_school.name|default:"No school"|truncatechars:26 }}
+      </div>
       {% endif %}
-      <details class="user-menu">
-        <summary aria-label="Open account menu">{{ user.get_short_name|first|upper }}</summary>
-        <div class="user-menu__panel">
-          <strong>{{ user.full_name }}</strong><small>{{ user.email }}</small>
-          <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav__section">
+          <div class="sidebar-nav__label">Menu</div>
+          <a href="{% url 'dashboard:home' %}" {% if request.resolver_match.namespace == 'dashboard' %}aria-current="page"{% endif %}>
+            <span class="nav-icon">⊞</span> Overview
+          </a>
+          <a href="{% url 'planning:work_plan_list' %}" {% if request.resolver_match.namespace == 'planning' and 'work' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <span class="nav-icon">📋</span> Work Plans
+          </a>
+          <a href="{% url 'planning:lesson_plan_list' %}" {% if request.resolver_match.namespace == 'planning' and 'lesson' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <span class="nav-icon">📝</span> Lesson Plans
+          </a>
+          {% if active_membership.can_manage_users %}
+          <a href="{% url 'planning:review_queue' %}" {% if request.resolver_match.namespace == 'planning' and 'review' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <span class="nav-icon">✅</span> Review Queue
+          </a>
+          {% endif %}
         </div>
-      </details>
+
+        {% if active_membership.can_manage_users %}
+        <div class="sidebar-nav__section">
+          <div class="sidebar-nav__label">School</div>
+          <a href="{% url 'schools:team' %}" {% if request.resolver_match.url_name == 'team' %}aria-current="page"{% endif %}>
+            <span class="nav-icon">👥</span> People
+          </a>
+          <a href="{% url 'schools:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>
+            <span class="nav-icon">⚙</span> School Setup
+          </a>
+        </div>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle colour theme">
+        <span class="theme-toggle__icon" id="theme-icon">☀️</span>
+        <span id="theme-label">Light mode</span>
+      </button>
+      <details class="user-menu">
+          <summary>
+            <div class="sidebar-user">
+              <div class="sidebar-user__avatar">{{ user.get_short_name|first|upper }}</div>
+              <div class="sidebar-user__info">
+                <div class="sidebar-user__name">{{ user.full_name|truncatechars:18 }}</div>
+                <div class="sidebar-user__role">{{ active_membership.get_role_display }}</div>
+              </div>
+            </div>
+          </summary>
+          <div class="user-menu__panel">
+            <strong>{{ user.full_name }}</strong>
+            <small>{{ user.email }}</small>
+            <form method="post" action="{% url 'accounts:logout' %}">
+              {% csrf_token %}<button type="submit">Sign out</button>
+            </form>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    {# ── Main area ── #}
+    <div class="app-main">
+      {# Mobile topbar #}
+      <div class="app-topbar">
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="app-sidebar" aria-label="Toggle navigation">☰</button>
+        <a class="brand" href="{% url 'dashboard:home' %}">
+          <span class="brand__mark">C</span>
+          <span class="brand__wordmark">Cambrify<span>IQ</span></span>
+        </a>
+        <div style="width:36px"></div>
+      </div>
+
+      {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}<div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+      <main id="main-content">
+  {% else %}
+    {# ── Unauthenticated — no sidebar ── #}
+    {% if messages %}
+    <div class="messages" aria-live="polite">
+      {% for message in messages %}<div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
     </div>
-  </header>
+    {% endif %}
+    <main id="main-content">
   {% endif %}
 
-  {% if messages %}
-  <div class="messages" aria-live="polite">
-    {% for message in messages %}<div class="message message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
-  </div>
-  {% endif %}
+  {# ═══ Single block content — hoisted outside if/else ═══ #}
+  {% block content %}{% endblock %}
 
-  <main id="main-content">{% block content %}{% endblock %}</main>
   {% block footer %}{% endblock %}
+
+  {% if user.is_authenticated %}
+      </main>
+    </div>{# end .app-main #}
+  </div>{# end .app-shell #}
+  {% else %}
+    </main>
+  {% endif %}
+
   <script src="{% static 'js/app.js' %}" defer></script>
+  <script>
+    (function() {
+      /* ── Theme ── */
+      var root = document.documentElement;
+      var saved = localStorage.getItem('ciq-theme');
+      /* Default to dark to match the Corona-style dark UI */
+      var dark = saved ? saved === 'dark' : true;
+
+      function applyTheme(isDark) {
+        root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        var icon  = document.getElementById('theme-icon');
+        var label = document.getElementById('theme-label');
+        if (icon)  icon.textContent  = isDark ? '☀️' : '🌙';
+        if (label) label.textContent = isDark ? 'Light mode' : 'Dark mode';
+        localStorage.setItem('ciq-theme', isDark ? 'dark' : 'light');
+      }
+
+      applyTheme(dark);
+
+      var btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          dark = !dark;
+          applyTheme(dark);
+        });
+      }
+
+      /* ── Mobile sidebar ── */
+      var navBtn  = document.querySelector('.nav-toggle');
+      var sidebar = document.getElementById('app-sidebar');
+      if (navBtn && sidebar) {
+        navBtn.addEventListener('click', function() {
+          var open = sidebar.classList.toggle('is-open');
+          navBtn.setAttribute('aria-expanded', String(open));
+        });
+        /* Close on outside click */
+        document.addEventListener('click', function(e) {
+          if (sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && e.target !== navBtn) {
+            sidebar.classList.remove('is-open');
+            navBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Calendar · {{ term.name }} · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">
+        <a href="{% url 'schools:academic_years' %}">Academic years</a> ›
+        <a href="{% url 'schools:terms' year.pk %}">{{ year.name }}</a> ›
+        {{ term.name }}
+      </p>
+      <h1>Teaching calendar</h1>
+      <p>{{ term.starts_on|date:"j M Y" }} – {{ term.ends_on|date:"j M Y" }} · {{ weeks|length }} week{{ weeks|length|pluralize }} defined</p>
+    </div>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <div>
+
+      {# ── Generate weeks panel (managers only) ─────────────────────────── #}
+      {% if is_manager %}
+      <section class="form-panel generate-form" style="margin-bottom:24px">
+        <h2>Generate weeks</h2>
+        <p>Auto-fill week rows from the term dates. Weeks already used in a Work Plan will not be overwritten.</p>
+        <form method="post" novalidate>{% csrf_token %}
+          <input type="hidden" name="action" value="generate_preview">
+          <div class="form-grid">
+            {% for field in generate_form %}
+            <div class="field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-actions"><button class="button button--secondary" type="submit">Preview weeks →</button></div>
+        </form>
+      </section>
+
+
+      {# ── Preview panel ────────────────────────────────────────────────── #}
+      {% if preview_rows %}
+      <section class="preview-panel panel" style="margin-bottom:24px">
+        <header class="panel__header">
+          <h2>Preview — {{ preview_rows|length }} week{{ preview_rows|length|pluralize }}</h2>
+          <span style="color:var(--ink-soft);font-size:13px">Review then confirm to save.</span>
+        </header>
+        <div class="panel__body">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>#</th><th>Dates</th><th>Month label</th></tr></thead>
+              <tbody>
+                {% for row in preview_rows %}
+                <tr><td>{{ row.sequence }}</td><td>{{ row.starts_on|date:"j M" }} – {{ row.ends_on|date:"j M" }}</td><td>{{ row.month_label }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <form method="post" style="margin-top:16px" novalidate>{% csrf_token %}
+            <input type="hidden" name="action" value="confirm_generate">
+            {# Replay the week_start_day choice into the confirm POST #}
+            {% for field in generate_form %}<input type="hidden" name="{{ field.html_name }}" value="{{ field.value }}">{% endfor %}
+            <div class="form-actions">
+              <a class="button button--secondary" href="{% url 'schools:calendar_weeks' year.pk term.pk %}">Discard preview</a>
+              <button class="button button--primary" type="submit">Confirm — create {{ preview_rows|length }} week{{ preview_rows|length|pluralize }}</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+      {% endif %}{# /is_manager #}
+
+      {# ── Editable week grid ───────────────────────────────────────────── #}
+      {% if weeks %}
+      <section class="panel" style="margin-bottom:24px">
+        <header class="panel__header">
+          <h2>Week grid</h2>
+          {% if is_manager %}<span style="color:var(--ink-soft);font-size:13px">Save grid to apply type and label changes.</span>{% endif %}
+        </header>
+        <form method="post" novalidate id="week-grid-form">{% csrf_token %}
+          <input type="hidden" name="action" value="save_grid">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Dates</th>
+                  <th>Month label</th>
+                  <th>Type</th>
+                  <th>Event label</th>
+                  <th>In use</th>
+                  {% if is_manager %}<th>Actions</th>{% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in weeks %}
+                {% with w=entry.obj n=entry.in_use_count %}
+                <input type="hidden" name="week_id" value="{{ w.pk }}">
+                <tr class="{% if not w.is_instructional %}week-row--special{% endif %}" data-week-id="{{ w.pk }}">
+                  <td>{{ w.sequence }}</td>
+                  <td><small>{{ w.starts_on|date:"j M" }} – {{ w.ends_on|date:"j M" }}</small></td>
+                  <td>
+                    {% if is_manager %}
+                    <input type="text" name="week_{{ w.pk }}_month_label" value="{{ w.month_label }}" aria-label="Month label for week {{ w.sequence }}" style="width:120px;min-height:36px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">
+                    {% else %}
+                    {{ w.month_label }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if is_manager %}
+                    <label class="week-type-toggle" title="Toggle Instructional / Special event">
+                      <input type="checkbox" name="week_{{ w.pk }}_is_special"
+                             {% if not w.is_instructional %}checked{% endif %}
+                             data-week-id="{{ w.pk }}"
+                             class="special-toggle"
+                             aria-label="Mark week {{ w.sequence }} as special event">
+                      <input type="hidden" name="week_{{ w.pk }}_is_instructional"
+                             value="{% if w.is_instructional %}true{% else %}false{% endif %}"
+                             id="hidden_instructional_{{ w.pk }}">
+                      <span class="week-type-badge {% if w.is_instructional %}week-type-badge--inst{% else %}week-type-badge--special{% endif %}">
+                        {% if w.is_instructional %}Instructional{% else %}Special event{% endif %}
+                      </span>
+                    </label>
+                    {% else %}
+                    <span class="week-type-badge {% if w.is_instructional %}week-type-badge--inst{% else %}week-type-badge--special{% endif %}">
+                      {% if w.is_instructional %}Instructional{% else %}Special event{% endif %}
+                    </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if is_manager %}
+                    <input type="text"
+                           name="week_{{ w.pk }}_event_label"
+                           value="{{ w.event_label }}"
+                           placeholder="e.g. Sports Day"
+                           aria-label="Event label for week {{ w.sequence }}"
+                           class="event-label-field{% if w.is_instructional %} event-label-field--hidden{% endif %}"
+                           id="event_label_{{ w.pk }}"
+                           style="width:180px;min-height:36px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">
+                    {% else %}
+                    {{ w.event_label|default:"—" }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if n > 0 %}
+                    <span class="in-use-badge">{{ n }} plan{{ n|pluralize }}</span>
+                    {% else %}
+                    <span style="color:var(--ink-soft)">—</span>
+                    {% endif %}
+                  </td>
+                  {% if is_manager %}
+                  <td>
+                    {% if n == 0 %}
+                    <form method="post" style="display:inline" onsubmit="return confirm('Delete week {{ w.sequence }}?')">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_week">
+                      <input type="hidden" name="week_id" value="{{ w.pk }}">
+                      <button class="button button--danger button--small" type="submit" title="Delete week {{ w.sequence }}">✕</button>
+                    </form>
+                    {% else %}
+                    <button class="button button--secondary button--small" type="button" disabled title="In use by {{ n }} plan{{ n|pluralize }} — cannot delete">✕</button>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endwith %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if is_manager %}
+          <div class="form-actions" style="padding:16px 20px">
+            <button class="button button--primary" type="submit">Save grid</button>
+          </div>
+          {% endif %}
+        </form>
+      </section>
+
+      {# ── Clone calendar ───────────────────────────────────────────────── #}
+      {% if is_manager and clone_form %}
+      <section class="form-panel" style="margin-bottom:24px">
+        <h2>Clone calendar to another term</h2>
+        <p>Copy this term's week structure into another term. Existing weeks in the target are not overwritten.</p>
+        <form method="post" novalidate>{% csrf_token %}
+          <input type="hidden" name="action" value="clone_calendar">
+          <div class="form-grid">
+            {% for field in clone_form %}
+            <div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-actions"><button class="button button--secondary" type="submit">Clone weeks →</button></div>
+        </form>
+      </section>
+      {% endif %}
+
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">📅</div>
+        <h3>No weeks defined yet</h3>
+        {% if is_manager %}
+        <p>Use "Generate weeks" above to auto-fill this term's teaching calendar, or add weeks manually after generating.</p>
+        {% else %}
+        <p>A school administrator needs to build the teaching calendar for this term before you can plan work.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle event-label field visibility and update the hidden instructional flag
+document.querySelectorAll('.special-toggle').forEach(function(checkbox) {
+  checkbox.addEventListener('change', function() {
+    var weekId = this.dataset.weekId;
+    var hiddenField = document.getElementById('hidden_instructional_' + weekId);
+    var eventLabel = document.getElementById('event_label_' + weekId);
+    var badge = this.closest('label').querySelector('.week-type-badge');
+    var row = this.closest('tr');
+    if (this.checked) {
+      // Special event
+      hiddenField.value = 'false';
+      if (eventLabel) { eventLabel.classList.remove('event-label-field--hidden'); }
+      if (badge) { badge.className = 'week-type-badge week-type-badge--special'; badge.textContent = 'Special event'; }
+      if (row) { row.classList.add('week-row--special'); }
+    } else {
+      // Instructional
+      hiddenField.value = 'true';
+      if (eventLabel) { eventLabel.classList.add('event-label-field--hidden'); }
+      if (badge) { badge.className = 'week-type-badge week-type-badge--inst'; badge.textContent = 'Instructional'; }
+      if (row) { row.classList.remove('week-row--special'); }
+    }
+  });
+});
+</script>
+{% endblock %}

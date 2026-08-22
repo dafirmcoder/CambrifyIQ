@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Classes · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div><p class="eyebrow">School administration</p><h1>Classes</h1><p>Manage teaching groups at {{ active_school.name }}.</p></div>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <div>
+
+      {# Create form #}
+      <section class="form-panel" style="margin-bottom:24px">
+        <h2>Add class</h2>
+        <form method="post" novalidate>{% csrf_token %}
+          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="form-grid">
+            {% for field in form %}
+            <div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-actions"><button class="button button--primary" type="submit">Add class</button></div>
+        </form>
+      </section>
+
+      {# Class list #}
+      {% if classes %}
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Year group</th><th>Boys</th><th>Girls</th><th>Total</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for klass in classes %}
+              <tr>
+                <td><strong>{{ klass.name }}</strong></td>
+                <td>{% if klass.year_group %}<code>{{ klass.year_group }}</code>{% else %}<span style="color:var(--ink-soft)">Not set</span>{% endif %}</td>
+                <td>{{ klass.boys_count }}</td>
+                <td>{{ klass.girls_count }}</td>
+                <td><strong>{{ klass.roster_total }}</strong></td>
+                <td>{% if klass.is_active %}<span class="status">Active</span>{% else %}<span class="status status--suspended">Inactive</span>{% endif %}</td>
+                <td class="table-actions">
+                  <a class="button button--secondary button--small" href="{% url 'schools:edit_school_class' klass.pk %}">Edit</a>
+                  {% if is_manager %}
+                  <form method="post" action="{% url 'schools:delete_school_class' klass.pk %}" style="display:inline" onsubmit="return confirm('Delete class {{ klass.name|escapejs }}?')">
+                    {% csrf_token %}<button class="button button--danger button--small" type="submit">Delete</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">🏫</div>
+        <h3>No classes yet</h3>
+        <p>Add the teaching groups for {{ active_school.name }} and set each class's year group to link it to the Cambridge curriculum.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Review Lesson Plan A {{ plan.assignment.subject.name }}{% endblock %}
+{% block content %}
+<div class="page-shell" style="display: grid; grid-template-columns: 3fr 1fr; gap: 2rem;">
+  <div>
+    <header class="page-header">
+      <div>
+        <span class="role-chip">{{ plan.get_status_display }}</span>
+        <h1>{{ plan.assignment.subject.name }} A {{ plan.assignment.school_class.name }}</h1>
+        <p>Teacher: {{ plan.author.get_full_name|default:plan.author.username }}</p>
+        <p>Date: {{ plan.lesson_date|date:"l, d F Y" }}</p>
+      </div>
+      <div>
+        <a class="button button--secondary" href="{% url 'planning:lesson_plan_pdf' plan.pk %}">Preview PDF</a>
+        <a class="button button--secondary" href="{% url 'planning:review_queue' %}">Back to Queue</a>
+      </div>
+    </header>
+
+    <section class="panel">
+      <header class="panel__header"><h2>Lesson Plan Details</h2></header>
+      <div class="panel__body">
+        <fieldset disabled>
+          <p><label>Topic</label><select><option>{{ plan.topic.title|default:"-" }}</option></select></p>
+          <p><label>Subtopic</label><select><option>{{ plan.subtopic.title|default:"-" }}</option></select></p>
+          <div style="display: flex; gap: 1rem;">
+            <p><label>Boys Attendance</label><input type="number" value="{{ plan.boys_attendance }}" disabled></p>
+            <p><label>Girls Attendance</label><input type="number" value="{{ plan.girls_attendance }}" disabled></p>
+          </div>
+          
+          <fieldset><legend>Learning objectives</legend>
+            {% for item in plan.objective_selections.all %}
+              <label><input type="checkbox" checked disabled> {{ item.code_snapshot }} ?" {{ item.text_snapshot }}</label><br>
+            {% empty %}
+              <p>No learning objectives selected.</p>
+            {% endfor %}
+          </fieldset>
+          
+          <p><label>Main Teaching Activity</label><textarea rows="6" disabled>{{ plan.main_teaching_activity }}</textarea></p>
+          <p><label>Assessment Ideas</label><textarea rows="4" disabled>{{ plan.assessment_ideas }}</textarea></p>
+          <p><label>Resources</label><input type="text" value="{{ plan.resources|join:', ' }}" disabled></p>
+          <p><label>Notes / Remarks</label><textarea rows="3" disabled>{{ plan.notes_remarks }}</textarea></p>
+        </fieldset>
+      </div>
+    </section>
+  </div>
+  
+  <div>
+    <section class="panel" style="position: sticky; top: 2rem;">
+      <header class="panel__header"><h2>Leader Review</h2></header>
+      <div class="panel__body">
+        <form method="post">
+          {% csrf_token %}
+          <p>
+            <label for="comment">Review Comment</label>
+            <textarea id="comment" name="comment" rows="6" placeholder="Required if returning to teacher..."></textarea>
+          </p>
+          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+            <button class="button button--primary" type="submit" name="action" value="approve">Approve</button>
+            <button class="button button--danger" type="submit" name="action" value="return">Return</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

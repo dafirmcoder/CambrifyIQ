@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Academic years · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div><p class="eyebrow">School administration</p><h1>Academic years</h1><p>Define the academic calendar structure for {{ active_school.name }}.</p></div>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <div>
+
+      {# Create form #}
+      <section class="form-panel" style="margin-bottom:24px">
+        <h2>Add academic year</h2>
+        <form method="post" novalidate>{% csrf_token %}
+          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="form-grid">
+            {% for field in form %}
+            <div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>
+            {% endfor %}
+          </div>
+          <div class="form-actions"><button class="button button--primary" type="submit">Create year</button></div>
+        </form>
+      </section>
+
+      {# Year list #}
+      {% if years %}
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Dates</th><th>Current</th><th>Terms</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for year in years %}
+              <tr>
+                <td><strong>{{ year.name }}</strong></td>
+                <td><small>{{ year.starts_on|date:"j M Y" }} – {{ year.ends_on|date:"j M Y" }}</small></td>
+                <td>{% if year.is_current %}<span class="status">Current</span>{% else %}<span style="color:var(--ink-soft)">—</span>{% endif %}</td>
+                <td>
+                  {% if year.term_count > 0 %}
+                    <a href="{% url 'schools:terms' year.pk %}">{{ year.term_count }} term{{ year.term_count|pluralize }}</a>
+                  {% else %}
+                    <a href="{% url 'schools:terms' year.pk %}" class="button button--secondary button--small">Add terms</a>
+                  {% endif %}
+                </td>
+                <td class="table-actions">
+                  <a class="button button--secondary button--small" href="{% url 'schools:edit_academic_year' year.pk %}">Edit</a>
+                  {% if year.term_count == 0 %}
+                  <form method="post" action="{% url 'schools:delete_academic_year' year.pk %}" style="display:inline" onsubmit="return confirm('Delete academic year {{ year.name|escapejs }}?')">
+                    {% csrf_token %}<button class="button button--danger button--small" type="submit">Delete</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">📅</div>
+        <h3>No academic years yet</h3>
+        <p>Create your first academic year to start building your school calendar, terms, and Work Plans.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

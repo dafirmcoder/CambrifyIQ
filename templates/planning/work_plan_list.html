@@ -1,18 +1,83 @@
 {% extends "base.html" %}
-{% block title %}Semester Work Plans · {{ active_school.name }}{% endblock %}
+{% load core_tags %}
+{% block title %}Work Plans{% endblock %}
 {% block content %}
 <div class="page-shell">
-  <header class="page-header"><div><span class="role-chip">Planning</span><h1>Semester Work Plans</h1><p>Create a plan from an active assignment, approved template, curriculum scheme and school calendar.</p></div></header>
-  <section class="panel"><header class="panel__header"><h2>New Work Plan</h2></header><div class="panel__body">
-    <form method="post">{% csrf_token %}
-      {{ form.non_field_errors }}
-      {% for field in form %}<p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}
-      <button class="button button--primary" type="submit">Create draft</button>
-    </form>
-  </div></section>
-  <section class="panel"><header class="panel__header"><h2>My plans</h2></header>
-    {% if plans %}<div class="panel__body"><ul class="assignment-list">{% for plan in plans %}<li><span class="assignment-code">{{ plan.get_status_display }}</span><div><strong><a href="{% url 'planning:work_plan_detail' plan.pk %}">{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</a></strong><small>{{ plan.term.name }} · updated {{ plan.updated_at|date:"j M Y, H:i" }}</small></div></li>{% endfor %}</ul></div>
-    {% else %}<div class="empty-state"><h3>No Work Plans yet</h3><p>Complete the school calendar and create your first draft above.</p></div>{% endif %}
-  </section>
+  <header class="page-header">
+    <div class="page-header__left">
+      <h1>Work Plans</h1>
+      <p>Create a plan from an active assignment, curriculum scheme and school calendar.</p>
+    </div>
+  </header>
+
+  <div class="dashboard-grid" style="grid-template-columns: minmax(0,2fr) minmax(280px,.8fr); align-items: start;">
+
+    {# Existing plans table #}
+    <section class="panel">
+      <header class="panel__header">
+        <h2>My Work Plans</h2>
+      </header>
+      {% if plans %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Class</th>
+              <th>Term</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for plan in plans %}
+            <tr>
+              <td><strong>{{ plan.assignment.subject.name }}</strong></td>
+              <td>{{ plan.assignment.school_class.name }}</td>
+              <td>{{ plan.term.name }}</td>
+              <td>
+                <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
+              </td>
+              <td class="table-actions">
+                <a class="button button--secondary button--small" href="{% url 'planning:work_plan_detail' plan.pk %}">Open</a>
+                <a class="button button--secondary button--small" href="{% url 'planning:work_plan_pdf' plan.pk %}">PDF</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">📋</div>
+        <h3>No work plans yet</h3>
+        <p>Use the form to create your first semester work plan from the calendar.</p>
+      </div>
+      {% endif %}
+    </section>
+
+    {# Creation form #}
+    <div class="form-panel">
+      <h2>New Work Plan</h2>
+      <p style="color:var(--ink-soft); font-size:14px; margin-bottom:22px;">Select your assignment, term and curriculum scheme to get started.</p>
+      {% if form.non_field_errors %}
+      <div class="form-errors">
+        <ul>{% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <form method="post" class="form-stack">
+        {% csrf_token %}
+        {% for field in form %}
+        <p>
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+        </p>
+        {% endfor %}
+        <button class="button button--primary" type="submit" style="width:100%; margin-top:8px;">Create draft</button>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

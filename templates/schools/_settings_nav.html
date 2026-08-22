@@ -1,0 +1,17 @@
+{# Shared settings navigation — include in every school-admin page #}
+{% with url_name=request.resolver_match.url_name %}
+<nav class="settings-nav" aria-label="School settings">
+  <a href="{% url 'schools:settings' %}"
+     {% if url_name == 'settings' %}aria-current="page"{% endif %}>School profile</a>
+  <a href="{% url 'schools:academic_years' %}"
+     {% if url_name == 'academic_years' or url_name == 'edit_academic_year' or url_name == 'terms' or url_name == 'edit_term' or url_name == 'calendar_weeks' %}aria-current="page"{% endif %}>Academic years</a>
+  <a href="{% url 'schools:subjects' %}"
+     {% if url_name == 'subjects' or url_name == 'edit_subject' %}aria-current="page"{% endif %}>Subjects</a>
+  <a href="{% url 'schools:school_classes' %}"
+     {% if url_name == 'school_classes' or url_name == 'edit_school_class' %}aria-current="page"{% endif %}>Classes</a>
+  <a href="{% url 'schools:teaching_assignments' %}"
+     {% if url_name == 'teaching_assignments' or url_name == 'create_assignment' or url_name == 'edit_assignment' %}aria-current="page"{% endif %}>Teaching assignments</a>
+  <a href="{% url 'schools:team' %}"
+     {% if url_name == 'team' or url_name == 'invite' %}aria-current="page"{% endif %}>People &amp; roles</a>
+</nav>
+{% endwith %}

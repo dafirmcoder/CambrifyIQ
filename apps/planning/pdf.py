@@ -86,3 +86,70 @@ def render_work_plan(plan, output):
     )
     story += [table, Spacer(1, 0.18 * inch), Paragraph("RESOURCES", heading), _paragraph(plan.resources, cell)]
     document.build(story)
+
+def render_lesson_plan(plan, output):
+    document = SimpleDocTemplate(
+        output,
+        pagesize=letter,
+        leftMargin=0.5 * inch,
+        rightMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        title=f"Lesson Plan - {plan.assignment.subject.name}",
+    )
+    styles = getSampleStyleSheet()
+    title = styles["Title"]
+    title.alignment = TA_CENTER
+    heading = styles["Heading3"]
+    normal = styles["BodyText"]
+    normal.fontSize = 10
+    normal.leading = 14
+
+    story = [
+        Paragraph("LESSON PLAN", title),
+        Spacer(1, 0.2 * inch),
+    ]
+
+    meta_data = [
+        [Paragraph(f"<b>SUBJECT:</b> {plan.assignment.subject.name}", normal),
+         Paragraph(f"<b>DATE:</b> {plan.lesson_date.strftime('%d %B %Y')}", normal)],
+        [Paragraph(f"<b>UNIT/SUB-UNIT:</b> {plan.topic.title}", normal), ""],
+        [Paragraph("<b>ATTENDANCE:</b>", normal), ""],
+        [Paragraph(f"<b>BOYS:</b> {plan.boys_attendance}", normal),
+         Paragraph(f"<b>GIRLS:</b> {plan.girls_attendance}", normal)],
+    ]
+    meta_table = Table(meta_data, colWidths=(3.5 * inch, 3.5 * inch))
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("<b>RESOURCES</b>", normal))
+    all_resources = ["Lesson Notes", "Projector", "Laptop", "Learner's Book", "Teacher's Resource", "Whiteboard/marker"]
+    selected_resources = plan.resources or []
+    for r in all_resources:
+        mark = "[X]" if r in selected_resources else "[ ]"
+        story.append(Paragraph(f"{mark} {r}", normal))
+    story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("<b>LEARNING OBJECTIVES</b>", normal))
+    story.append(Paragraph("By the end of this lesson, learners should be able to:", normal))
+    for obj in plan.objective_selections.all():
+        story.append(Paragraph(f"- {obj.code_snapshot}: {obj.text_snapshot}", normal))
+    story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("<b>MAIN TEACHING ACTIVITY</b>", normal))
+    story.append(Paragraph((plan.main_teaching_activity or "").replace("\n", "<br/>"), normal))
+    story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("<b>ASSESSMENT IDEAS</b>", normal))
+    story.append(Paragraph((plan.assessment_ideas or "").replace("\n", "<br/>"), normal))
+    story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("<b>NOTES/REMARKS</b>", normal))
+    story.append(Paragraph((plan.notes_remarks or "").replace("\n", "<br/>"), normal))
+    story.append(Spacer(1, 0.1 * inch))
+
+    document.build(story)

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Teaching assignments · CambrifyIQ{% endblock %}
+{% block content %}
+<div class="page-shell">
+  <header class="page-header">
+    <div><p class="eyebrow">School administration</p><h1>Teaching assignments</h1><p>Which teacher is responsible for which subject and class.</p></div>
+    <a class="button button--primary" href="{% url 'schools:create_assignment' %}">Add assignment</a>
+  </header>
+  <div class="settings-layout">
+    {% include "schools/_settings_nav.html" %}
+    <div>
+
+      {# Filters #}
+      <form method="get" class="filter-bar" style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <select name="teacher" aria-label="Filter by teacher" style="min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:7px">
+          <option value="">All teachers</option>
+          {% for t in teachers %}<option value="{{ t.pk }}" {% if filter_teacher == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.full_name }}</option>{% endfor %}
+        </select>
+        <select name="subject" aria-label="Filter by subject" style="min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:7px">
+          <option value="">All subjects</option>
+          {% for s in all_subjects %}<option value="{{ s.pk }}" {% if filter_subject == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+        <select name="class" aria-label="Filter by class" style="min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:7px">
+          <option value="">All classes</option>
+          {% for c in all_classes %}<option value="{{ c.pk }}" {% if filter_class == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px">
+          <input type="checkbox" name="active" value="1" {% if active_only %}checked{% endif %}> Active only
+        </label>
+        <button class="button button--secondary button--small" type="submit">Filter</button>
+        <a class="button button--secondary button--small" href="{% url 'schools:teaching_assignments' %}">Clear</a>
+      </form>
+
+      {# Assignments list #}
+      {% if assignments %}
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th>From</th><th>Until</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for a in assignments %}
+              <tr>
+                <td>
+                  <div class="person">
+                    <span class="person__avatar">{{ a.teacher.get_short_name|first|upper }}</span>
+                    <div><strong>{{ a.teacher.full_name }}</strong></div>
+                  </div>
+                </td>
+                <td><span class="assignment-code">{{ a.subject.code|truncatechars:6 }}</span> {{ a.subject.name }}</td>
+                <td>{{ a.school_class.name }}</td>
+                <td><small>{{ a.effective_from|date:"j M Y" }}</small></td>
+                <td><small>{% if a.effective_until %}{{ a.effective_until|date:"j M Y" }}{% else %}Open-ended{% endif %}</small></td>
+                <td>{% if a.is_active %}<span class="status">Active</span>{% else %}<span class="status status--suspended">Inactive</span>{% endif %}</td>
+                <td class="table-actions">
+                  <a class="button button--secondary button--small" href="{% url 'schools:edit_assignment' a.pk %}">Edit</a>
+                  {% if is_manager %}
+                  <form method="post" action="{% url 'schools:delete_assignment' a.pk %}" style="display:inline" onsubmit="return confirm('Remove this assignment?')">
+                    {% csrf_token %}<button class="button button--danger button--small" type="submit">Delete</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">👩‍🏫</div>
+        <h3>No assignments found</h3>
+        <p>{% if filter_teacher or filter_subject or filter_class %}Try clearing your filters.{% else %}Assign teachers to their subjects and classes so they can create Work Plans.{% endif %}</p>
+        <a class="button button--primary" href="{% url 'schools:create_assignment' %}">Add assignment</a>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

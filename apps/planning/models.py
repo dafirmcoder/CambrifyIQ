@@ -455,6 +455,7 @@ class LessonPlan(TimeStampedModel):
     girls_attendance = models.PositiveSmallIntegerField()
     main_teaching_activity = models.TextField()
     assessment_ideas = models.TextField()
+    resources = models.JSONField(default=list, blank=True)
     notes_remarks = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     revision = models.PositiveIntegerField(default=1)
