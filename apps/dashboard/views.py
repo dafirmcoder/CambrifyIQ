@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.planning.models import LessonPlan, WorkPlan
 from apps.schools.models import (
     AcademicYear,
     CalendarWeek,
@@ -34,8 +35,44 @@ def home(request):
     )
     active_assignments = active_assignments.select_related("subject", "school_class").distinct()
 
+    teacher_work_plans = WorkPlan.objects.filter(author=request.user)
+    teacher_lesson_plans = LessonPlan.objects.filter(author=request.user)
+
+    draft_plans_count = (
+        teacher_work_plans.filter(status=WorkPlan.Status.DRAFT).count()
+        + teacher_lesson_plans.filter(status=LessonPlan.Status.DRAFT).count()
+    )
+    returned_plans_count = (
+        teacher_work_plans.filter(status=WorkPlan.Status.RETURNED).count()
+        + teacher_lesson_plans.filter(status=LessonPlan.Status.RETURNED).count()
+    )
+    approved_plans_count = (
+        teacher_work_plans.filter(status=WorkPlan.Status.APPROVED).count()
+        + teacher_lesson_plans.filter(status=LessonPlan.Status.APPROVED).count()
+    )
+    submitted_plans_count = (
+        teacher_work_plans.filter(
+            status__in=[
+                WorkPlan.Status.SUBMITTED,
+                WorkPlan.Status.UNDER_REVIEW,
+                WorkPlan.Status.RESUBMITTED,
+            ]
+        ).count()
+        + teacher_lesson_plans.filter(
+            status__in=[
+                LessonPlan.Status.SUBMITTED,
+                LessonPlan.Status.UNDER_REVIEW,
+                LessonPlan.Status.RESUBMITTED,
+            ]
+        ).count()
+    )
+
     stats = {
         "assignments": active_assignments.count(),
+        "draft_plans": draft_plans_count,
+        "returned_plans": returned_plans_count,
+        "approved_plans": approved_plans_count,
+        "submitted_plans": submitted_plans_count,
         "team_members": Membership.objects.filter(
             school=request.school, status=Membership.Status.ACTIVE
         ).count(),
@@ -43,6 +80,14 @@ def home(request):
         "classes": SchoolClass.objects.filter(is_active=True).count(),
         "pending_invites": Invitation.objects.filter(status=Invitation.Status.PENDING).count(),
     }
+
+    planning_activity = (
+        WorkPlan.objects.select_related(
+            "assignment__subject", "assignment__school_class", "author", "term"
+        ).order_by("-updated_at")[:6]
+        if not (membership.role == Membership.Role.TEACHER)
+        else []
+    )
 
     has_year = AcademicYear.objects.exists()
     has_term = Term.objects.exists()
@@ -88,6 +133,7 @@ def home(request):
     context = {
         "stats": stats,
         "assignments": active_assignments[:6],
+        "planning_activity": planning_activity,
         "setup": setup,
         "setup_urls": setup_urls,
         "setup_items": setup_items,

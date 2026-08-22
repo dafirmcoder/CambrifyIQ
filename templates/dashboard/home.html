@@ -20,27 +20,33 @@
         <div class="stat-card__value">{{ stats.assignments }}</div>
         <div class="stat-card__hint">Scoped to today</div>
       </article>
-      <article class="stat-card stat-card--orange">
-        <div class="stat-card__accent"></div>
-        <div class="stat-card__icon">📋</div>
-        <div class="stat-card__label">Draft Plans</div>
-        <div class="stat-card__value">—</div>
-        <div class="stat-card__hint">Available in planning phase</div>
-      </article>
-      <article class="stat-card stat-card--orange">
-        <div class="stat-card__accent"></div>
-        <div class="stat-card__icon">↩️</div>
-        <div class="stat-card__label">Returned Plans</div>
-        <div class="stat-card__value">—</div>
-        <div class="stat-card__hint">Need your attention</div>
-      </article>
-      <article class="stat-card stat-card--green">
-        <div class="stat-card__accent"></div>
-        <div class="stat-card__icon">✅</div>
-        <div class="stat-card__label">Approved Plans</div>
-        <div class="stat-card__value">—</div>
-        <div class="stat-card__hint">Completed this term</div>
-      </article>
+      <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
+        <article class="stat-card stat-card--orange">
+          <div class="stat-card__accent"></div>
+          <div class="stat-card__icon">📋</div>
+          <div class="stat-card__label">Draft Plans</div>
+          <div class="stat-card__value">{{ stats.draft_plans }}</div>
+          <div class="stat-card__hint">Available in planning phase</div>
+        </article>
+      </a>
+      <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
+        <article class="stat-card stat-card--orange">
+          <div class="stat-card__accent"></div>
+          <div class="stat-card__icon">↩️</div>
+          <div class="stat-card__label">Returned Plans</div>
+          <div class="stat-card__value">{{ stats.returned_plans }}</div>
+          <div class="stat-card__hint">Need your attention</div>
+        </article>
+      </a>
+      <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
+        <article class="stat-card stat-card--green">
+          <div class="stat-card__accent"></div>
+          <div class="stat-card__icon">✅</div>
+          <div class="stat-card__label">Approved Plans</div>
+          <div class="stat-card__value">{{ stats.approved_plans }}</div>
+          <div class="stat-card__hint">Completed this term</div>
+        </article>
+      </a>
     {% else %}
       <article class="stat-card stat-card--blue">
         <div class="stat-card__accent"></div>
@@ -74,11 +80,19 @@
   </section>
   <div class="dashboard-grid">
     <section class="panel">
-      <header class="panel__header"><h2>{% if is_teacher %}My teaching assignments{% else %}Planning activity{% endif %}</h2></header>
-      {% if assignments %}
-      <div class="panel__body"><ul class="assignment-list">{% for assignment in assignments %}<li><span class="assignment-code">{{ assignment.subject.code|truncatechars:5 }}</span><div><strong>{{ assignment.subject.name }}</strong><small>{{ assignment.school_class.name }} · from {{ assignment.effective_from|date:"j M Y" }}</small></div></li>{% endfor %}</ul></div>
+      <header class="panel__header"><h2>{% if is_teacher %}My teaching assignments{% else %}Recent planning activity{% endif %}</h2></header>
+      {% if is_teacher %}
+        {% if assignments %}
+          <div class="panel__body"><ul class="assignment-list">{% for assignment in assignments %}<li><span class="assignment-code">{{ assignment.subject.code|truncatechars:5 }}</span><div><strong>{{ assignment.subject.name }}</strong><small>{{ assignment.school_class.name }} · from {{ assignment.effective_from|date:"j M Y" }}</small></div></li>{% endfor %}</ul></div>
+        {% else %}
+          <div class="empty-state"><div class="empty-state__icon">◇</div><h3>No active assignment yet</h3><p>A school leader or coordinator needs to assign a subject and class before planning options become available.</p></div>
+        {% endif %}
       {% else %}
-      <div class="empty-state"><div class="empty-state__icon">◇</div><h3>{% if is_teacher %}No active assignment yet{% else %}Planning modules are next{% endif %}</h3><p>{% if is_teacher %}A school leader or coordinator needs to assign a subject and class before planning options become available.{% else %}The tenant, access and assignment foundation is ready. Curriculum and plan workflows follow in the next milestones.{% endif %}</p></div>
+        {% if planning_activity %}
+          <div class="panel__body"><ul class="assignment-list">{% for plan in planning_activity %}<li><span class="assignment-code chip--{{ plan.status }}">{{ plan.get_status_display }}</span><div><strong>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</strong><small>{{ plan.author.full_name|default:plan.author.email }} · {{ plan.term.name }} · updated {{ plan.updated_at|date:"j M Y" }}</small></div></li>{% endfor %}</ul></div>
+        {% else %}
+          <div class="empty-state"><div class="empty-state__icon">◇</div><h3>No planning activity yet</h3><p>Teachers have not created any Work Plans yet.</p></div>
+        {% endif %}
       {% endif %}
     </section>
     <aside>
