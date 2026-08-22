@@ -45,7 +45,7 @@ class GlobalCurriculumTests(TestCase):
         )
         foreign_topic = Topic.objects.create(scheme=other_scheme, title="Number", sequence=1)
         objective = LearningObjective(
-            scheme=self.scheme, topic=foreign_topic, code="8Sc.01", text="Investigate." 
+            scheme=self.scheme, topic=foreign_topic, code="8Sc.01", text="Investigate."
         )
         with self.assertRaises(ValidationError):
             objective.full_clean()

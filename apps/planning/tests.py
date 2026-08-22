@@ -7,7 +7,13 @@ from django.test import TestCase
 
 from apps.core.tenant import tenant_scope
 from apps.curriculum.models import CurriculumFramework, LearningObjective, SchemeOfWork, Topic
-from apps.planning.models import LessonPlan, PlanningTemplate, TemplateField, TemplateVersion, WorkPlan
+from apps.planning.models import (
+    LessonPlan,
+    PlanningTemplate,
+    TemplateField,
+    TemplateVersion,
+    WorkPlan,
+)
 from apps.planning.pdf import render_work_plan
 from apps.planning.services import (
     create_lesson_plan,
@@ -99,7 +105,9 @@ class PlanningTemplateTests(TestCase):
 class WorkPlanServiceTests(TestCase):
     def setUp(self):
         self.school = School.objects.create(name="Alpha", slug="alpha", code="ALPHA")
-        self.teacher = User.objects.create_user("teacher@example.com", "StrongPass!246", full_name="Teacher")
+        self.teacher = User.objects.create_user(
+            "teacher@example.com", "StrongPass!246", full_name="Teacher"
+        )
         self.coordinator = User.objects.create_user(
             "coordinator@example.com", "StrongPass!246", full_name="Coordinator"
         )
@@ -110,7 +118,10 @@ class WorkPlanServiceTests(TestCase):
             school=self.school, user=self.coordinator, role=Membership.Role.COORDINATOR
         )
         self.year = AcademicYear.all_objects.create(
-            school=self.school, name="2026/2027", starts_on=date(2026, 8, 1), ends_on=date(2027, 7, 31)
+            school=self.school,
+            name="2026/2027",
+            starts_on=date(2026, 8, 1),
+            ends_on=date(2027, 7, 31),
         )
         self.term = Term.all_objects.create(
             school=self.school,
@@ -198,7 +209,12 @@ class WorkPlanServiceTests(TestCase):
         with tenant_scope(self.school):
             weeks = list(plan.weeks.order_by("sequence"))
         updates = [
-            {"id": weeks[0].pk, "topic_id": self.topic.pk, "objectives": [self.objective.pk], "remarks": "Lab"},
+            {
+                "id": weeks[0].pk,
+                "topic_id": self.topic.pk,
+                "objectives": [self.objective.pk],
+                "remarks": "Lab",
+            },
             {"id": weeks[1].pk, "remarks": "Revision"},
         ]
         with tenant_scope(self.school):
@@ -251,7 +267,9 @@ class WorkPlanServiceTests(TestCase):
             template_type=PlanningTemplate.TemplateType.LESSON_PLAN,
             name="Lesson Plan",
         )
-        version = TemplateVersion.all_objects.create(school=self.school, template=template, version=1)
+        version = TemplateVersion.all_objects.create(
+            school=self.school, template=template, version=1
+        )
         version.status = TemplateVersion.Status.PUBLISHED
         version.effective_from = date(2026, 8, 1)
         version.save()

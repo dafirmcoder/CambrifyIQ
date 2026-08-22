@@ -26,5 +26,12 @@ class TemplateVersionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(
-    [TemplateField, TemplateFieldOption, WorkPlan, WorkPlanEvent, WorkPlanWeek, WorkPlanWeekObjective]
+    [
+        TemplateField,
+        TemplateFieldOption,
+        WorkPlan,
+        WorkPlanEvent,
+        WorkPlanWeek,
+        WorkPlanWeekObjective,
+    ]
 )

@@ -1,25 +1,1062 @@
 {% extends "base.html" %}
-{% block title %}Work Plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% load core_tags %}
+{% block title %}Work Plan · {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}{% endblock %}
 {% block content %}
-<div class="page-shell">
-  <header class="page-header"><div><span class="role-chip">{{ plan.get_status_display }}</span><h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1><p>{{ plan.term.name }} · {{ plan.scheme.title }} · revision {{ plan.revision }}</p></div><div><a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}">Preview PDF</a> <a class="button button--secondary" href="{% url 'planning:work_plan_list' %}">All Work Plans</a></div></header>
-  {% if editable %}
-  <form method="post">{% csrf_token %}<input type="hidden" name="revision" value="{{ plan.revision }}">
-  {% endif %}
-  <section class="panel"><header class="panel__header"><h2>Calendar weeks</h2></header><div class="panel__body">
-    {% for week in weeks %}
-      <fieldset {% if not editable or not week.is_instructional %}disabled{% endif %}>
-        <legend>Week {{ week.sequence }} · {{ week.week_label }}{% if week.event_label %} — {{ week.event_label }}{% endif %}</legend>
-        {% if week.is_instructional %}
-          <p><label for="topic-{{ week.pk }}">Topic</label><select id="topic-{{ week.pk }}" name="week_{{ week.pk }}_topic"><option value="">Choose a curriculum topic</option>{% for topic in topics %}<option value="{{ topic.pk }}" {% if week.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>{% endfor %}</select></p>
-          <fieldset><legend>Learning objectives</legend>{% for objective in objectives %}<label><input type="checkbox" name="week_{{ week.pk }}_objectives" value="{{ objective.pk }}" {% if objective.pk|stringformat:"s" in week.selected_objective_ids %}checked{% endif %}> {{ objective.code }} — {{ objective.text }}</label><br>{% endfor %}</fieldset>
-        {% else %}<p><strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional week" }}</p>{% endif %}
-        <p><label for="remarks-{{ week.pk }}">Remarks</label><textarea id="remarks-{{ week.pk }}" name="week_{{ week.pk }}_remarks" rows="3">{{ week.remarks }}</textarea></p>
-      </fieldset>
-    {% endfor %}
-    <p><label for="resources">Resources</label><textarea id="resources" name="resources" rows="4" {% if not editable %}disabled{% endif %}>{{ plan.resources }}</textarea></p>
-  </div></section>
-  {% if editable %}<button class="button button--primary" type="submit">Save draft</button></form>
-  <form method="post" action="{% url 'planning:work_plan_submit' plan.pk %}" style="display:inline">{% csrf_token %}<button class="button button--secondary" type="submit">Submit for review</button></form>{% endif %}
+<div class="page-shell" style="max-width: 1400px;">
+  <header class="page-header">
+    <div class="page-header__left">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
+        <span style="font-size:13px; color:var(--ink-soft);">Revision {{ plan.revision }}</span>
+      </div>
+      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+      <p>{{ plan.term.name }} · {{ plan.scheme.title }} ({{ plan.scheme.subject_code }}{% if plan.scheme.year_group %} · {{ plan.scheme.year_group }}{% endif %})</p>
+    </div>
+    <div class="button-row">
+      <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}" target="_blank">Preview PDF</a>
+      <a class="button button--secondary" href="{% url 'planning:work_plan_list' %}">All Work Plans</a>
+    </div>
+  </header>
+
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  {# COVERAGE SUMMARY BANNER                                              #}
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  <div class="panel panel--coverage" style="margin-bottom:24px; padding:20px 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:16px;">
+      <div>
+        <h3 style="font-size:16px; font-weight:800; margin:0 0 4px; display:flex; align-items:center; gap:8px;">
+          <span>Curriculum Coverage Progress</span>
+          <span id="coverage-projected-percent-badge" class="chip chip--approved" style="font-size:12px;">{{ coverage.projected_objective_percent }}%</span>
+        </h3>
+        <p style="font-size:13px; color:var(--ink-soft); margin:0;">
+          Previously planned objectives are hidden for this class and subject. Coverage is based on approved Work Plans from earlier terms.
+        </p>
+      </div>
+      <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+        <div style="text-align:right;">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Objectives Planned</span>
+          <div style="font-size:18px; font-weight:800;">
+            <span id="cov-stat-projected-objs">{{ coverage.projected_covered_objectives }}</span> / {{ coverage.total_objectives }}
+          </div>
+        </div>
+        <div style="text-align:right; border-left:1px solid var(--line); padding-left:16px;">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Topics Covered</span>
+          <div style="font-size:18px; font-weight:800;">
+            <span id="cov-stat-topics-covered">{{ coverage.covered_topics }}</span> / {{ coverage.total_topics }} (<span id="cov-stat-topic-percent">{{ coverage.projected_topic_percent }}</span>%)
+          </div>
+        </div>
+        <div style="text-align:right; border-left:1px solid var(--line); padding-left:16px;">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Remaining</span>
+          <div id="cov-stat-remaining" style="font-size:18px; font-weight:800; color:var(--accent-orange);">{{ coverage.remaining_objectives }}</div>
+        </div>
+      </div>
+    </div>
+
+    {# Dual-Segment Progress Track #}
+    <div class="coverage-progress-track">
+      <div id="cov-bar-previous" class="coverage-progress-prev" style="width:{{ coverage.previous_objective_percent }}%;" title="Previous Coverage: {{ coverage.previously_covered_objectives }} objectives ({{ coverage.previous_objective_percent }}%)"></div>
+      <div id="cov-bar-current" class="coverage-progress-curr" style="width:{% if coverage.total_objectives %}{% widthratio coverage.current_plan_objectives coverage.total_objectives 100 %}{% else %}0{% endif %}%;" title="This Plan Adds: {{ coverage.current_plan_objectives }} objectives"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; gap:8px;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span style="width:10px; height:10px; border-radius:50%; background:var(--accent-green); display:inline-block;"></span>
+          Previous Coverage: <strong id="cov-legend-prev">{{ coverage.previously_covered_objectives }}</strong> ({{ coverage.previous_objective_percent }}%)
+        </span>
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span style="width:10px; height:10px; border-radius:50%; background:var(--accent-blue); display:inline-block;"></span>
+          This Plan Adds: <strong id="cov-legend-curr">{{ coverage.current_plan_objectives }}</strong>
+        </span>
+      </div>
+      <div>
+        Total Scheme: <strong>{{ coverage.total_objectives }}</strong> Objectives
+      </div>
+    </div>
+  </div>
+
+  {# Live announcement region for accessibility #}
+  <div id="live-announcer" class="sr-only" aria-live="polite" style="position:absolute; left:-9999px;"></div>
+
+  <div class="plan-workspace-grid">
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# LEFT PANEL: CURRICULUM LIBRARY                                       #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <aside class="panel curriculum-library-panel panel--blue" aria-label="Curriculum library">
+      <header class="panel__header">
+        <h2>Curriculum Library</h2>
+        <span id="library-selected-count" class="chip chip--draft" style="font-size:11.5px;">0 selected</span>
+      </header>
+      <div class="panel__body">
+        
+        {# Target week selector #}
+        <div>
+          <label for="library-target-week" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Target teaching week</label>
+          <select id="library-target-week" class="field select" style="width:100%;">
+            {% for week in weeks %}
+              {% if week.is_instructional %}
+                <option value="{{ week.pk }}">Week {{ week.sequence }}: {{ week.week_label }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Topic filter #}
+        <div>
+          <label for="library-topic-filter" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Topic filter</label>
+          <select id="library-topic-filter" class="field select" style="width:100%;">
+            <option value="">-- Choose a Topic to browse --</option>
+            {% for topic in curriculum_json.topics %}
+              {% if not topic.is_fully_covered %}
+                <option value="{{ topic.id }}">{{ topic.title }} ({{ topic.available_objectives_count }} remaining · {{ topic.covered_percent }}% covered)</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Unit / Subtopic filter #}
+        <div>
+          <label for="library-unit-filter" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Unit filter</label>
+          <select id="library-unit-filter" class="field select" style="width:100%;" disabled>
+            <option value="">All Units in this Topic</option>
+          </select>
+        </div>
+
+        {# Search input #}
+        <div>
+          <label for="library-search-input" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Search available objectives</label>
+          <input type="search" id="library-search-input" class="objective-search-input" placeholder="Search by code (e.g. 8Sc.01) or text..." aria-label="Search objectives">
+        </div>
+
+        {# Action buttons #}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button type="button" id="btn-add-selected" class="button button--primary button--small" style="width:100%;" disabled>
+            + Add selected to target week
+          </button>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <button type="button" id="btn-add-topic" class="button button--secondary button--small" disabled title="Add all available objectives in current Topic">
+              + All in Topic
+            </button>
+            <button type="button" id="btn-add-unit" class="button button--secondary button--small" disabled title="Add all available objectives in current Unit">
+              + All in Unit
+            </button>
+          </div>
+        </div>
+
+        {# Objectives list #}
+        <div style="flex:1; display:flex; flex-direction:column;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; font-weight:700; color:var(--ink-soft);">Available Objectives</span>
+            <button type="button" id="btn-toggle-all-visible" class="button button--ghost button--small" style="padding:2px 6px; font-size:11.5px; height:auto; min-height:auto;" disabled>Select all</button>
+          </div>
+          <div id="library-objectives-container" class="objective-list-box" role="group" aria-label="Available curriculum learning objectives">
+            <div id="library-empty-prompt" style="padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
+              Select a Topic above to explore learning objectives.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# RIGHT PANEL: WEEKLY PLAN                                             #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <main aria-label="Weekly plan schedule">
+      
+      {# Lesson count summary and global actions bar #}
+      <div class="panel" style="margin-bottom:20px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div>
+            <span style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Total Planned Lessons</span>
+            <div id="summary-total-lessons" style="font-size:24px; font-weight:800; color:var(--accent-blue); line-height:1.1;">0</div>
+          </div>
+          <div style="border-left:1px solid var(--line); padding-left:16px;">
+            <span style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Instructional Weeks</span>
+            <div style="font-size:24px; font-weight:800; line-height:1.1;">{{ weeks|length }}</div>
+          </div>
+        </div>
+
+        {% if editable %}
+        <div class="button-row">
+          <button type="button" id="btn-save-draft-top" class="button button--primary">Save draft</button>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if editable %}
+      <form method="post" id="work-plan-editor-form">
+        {% csrf_token %}
+        <input type="hidden" name="revision" value="{{ plan.revision }}">
+      {% endif %}
+
+        {# Loop over weeks #}
+        {% for week in weeks %}
+        <article class="week-card {% if not week.is_instructional %}week-row--special{% endif %}" id="week-card-{{ week.pk }}" data-week-id="{{ week.pk }}" data-is-instructional="{% if week.is_instructional %}true{% else %}false{% endif %}">
+          <header class="week-card__header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="chip {% if week.is_instructional %}chip--approved{% else %}chip--submitted{% endif %}">
+                Week {{ week.sequence }}
+              </span>
+              <strong>{{ week.week_label }}</strong>
+              {% if week.month_label %}
+                <span style="color:var(--ink-soft); font-size:13px;">({{ week.month_label }})</span>
+              {% endif %}
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              {% if week.is_instructional and editable %}
+                <button type="button" class="button button--secondary button--small btn-set-target" data-target-id="{{ week.pk }}">
+                  🎯 Target this week
+                </button>
+              {% elif not week.is_instructional %}
+                <span class="week-type-badge week-type-badge--special">{{ week.event_label|default:"Special event" }}</span>
+              {% endif %}
+            </div>
+          </header>
+
+          <div class="week-card__body">
+            {% if week.is_instructional %}
+              
+              {# Row: Topic, Unit, Lessons #}
+              <div style="display:grid; grid-template-columns:1fr 1fr 140px; gap:14px; align-items:start;">
+                
+                {# Primary Topic #}
+                <div>
+                  <label for="week_{{ week.pk }}_topic" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">
+                    Primary Topic
+                  </label>
+                  <select id="week_{{ week.pk }}_topic" name="week_{{ week.pk }}_topic" class="field select week-topic-select" data-week-id="{{ week.pk }}" {% if not editable %}disabled{% endif %} style="width:100%;">
+                    <option value="">-- No primary topic --</option>
+                    {% for topic in topics %}
+                      <option value="{{ topic.pk }}" {% if week.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                {# Primary Unit #}
+                <div>
+                  <label for="week_{{ week.pk }}_subtopic" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">
+                    Primary Unit
+                  </label>
+                  <select id="week_{{ week.pk }}_subtopic" name="week_{{ week.pk }}_subtopic" class="field select week-unit-select" data-week-id="{{ week.pk }}" data-initial-subtopic="{{ week.subtopic_id|default:'' }}" {% if not editable %}disabled{% endif %} style="width:100%;">
+                    <option value="">-- No unit / All units --</option>
+                    {% for subtopic in subtopics %}
+                      {% if week.topic_id == subtopic.topic_id %}
+                        <option value="{{ subtopic.pk }}" {% if week.subtopic_id == subtopic.pk %}selected{% endif %}>{{ subtopic.title }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </div>
+
+                {# Lessons per week #}
+                <div>
+                  <label for="week_{{ week.pk }}_lessons" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">
+                    Lessons / wk
+                  </label>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="number" id="week_{{ week.pk }}_lessons" name="week_{{ week.pk }}_lessons" class="week-lessons-input" min="1" max="50" value="{{ week.lessons_per_week|default:1 }}" {% if not editable %}disabled{% endif %} style="width:70px; min-height:38px; padding:6px 10px;">
+                    {% if editable %}
+                    <button type="button" class="button button--ghost button--small btn-apply-lessons-all" data-week-id="{{ week.pk }}" title="Apply this lesson count to all instructional weeks" style="padding:4px 8px; font-size:12px;">
+                      Apply all
+                    </button>
+                    {% endif %}
+                  </div>
+                </div>
+
+              </div>
+
+              {# Selected Objectives Section #}
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label style="font-size:12.5px; font-weight:700;">Selected Learning Objectives (<span class="week-obj-count">{{ week.selected_objectives_details|length }}</span>)</label>
+                  <span style="font-size:12px; color:var(--ink-soft);">Add objectives from the Curriculum Library</span>
+                </div>
+
+                <div class="week-objectives-container" id="week-obj-container-{{ week.pk }}" data-week-id="{{ week.pk }}">
+                  {% for item in week.selected_objectives_details %}
+                    <div class="selected-objective-card" data-obj-id="{{ item.id }}" data-topic-id="{{ item.topic_id }}" data-subtopic-id="{{ item.subtopic_id }}">
+                      <input type="hidden" name="week_{{ week.pk }}_objectives" value="{{ item.id }}">
+                      <div style="flex:1;">
+                        <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
+                        <div style="margin-top:4px; font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+                          <span>[Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}]</span>
+                          <span class="cross-unit-badge" style="display:none;">Cross-unit</span>
+                        </div>
+                      </div>
+                      {% if editable %}
+                        <button type="button" class="remove-btn btn-remove-obj" aria-label="Remove objective {{ item.code }}">✕</button>
+                      {% endif %}
+                    </div>
+                  {% empty %}
+                    <div class="empty-objs-msg" style="color:var(--ink-soft); font-size:13px; font-style:italic; padding:8px 4px;">
+                      No learning objectives added yet. Use the Curriculum Library on the left to add objectives.
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+            {% else %}
+              {# Non-instructional week #}
+              <div style="padding:10px 0; color:var(--ink-soft); font-size:14px;">
+                <strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional / Break week" }}
+                <input type="hidden" name="week_{{ week.pk }}_lessons" value="0">
+              </div>
+            {% endif %}
+
+            {# Remarks #}
+            <div>
+              <label for="week_{{ week.pk }}_remarks" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Remarks</label>
+              <textarea id="week_{{ week.pk }}_remarks" name="week_{{ week.pk }}_remarks" rows="2" {% if not editable %}disabled{% endif %} placeholder="Optional notes for this week..." style="width:100%; min-height:60px;">{{ week.remarks }}</textarea>
+            </div>
+
+          </div>
+        </article>
+        {% endfor %}
+
+        {# Resources #}
+        <section class="panel" style="margin-top:24px;">
+          <header class="panel__header"><h2>General Resources & Notes</h2></header>
+          <div class="panel__body">
+            <label for="resources" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">General Resources</label>
+            <textarea id="resources" name="resources" rows="4" {% if not editable %}disabled{% endif %} placeholder="Textbooks, digital resources, apparatus, equipment...">{{ plan.resources }}</textarea>
+          </div>
+        </section>
+
+        {% if editable %}
+        <div style="margin-top:24px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+          <button class="button button--primary button--large" type="submit" id="btn-save-draft-bottom">
+            Save draft
+          </button>
+      </form>
+          <form method="post" action="{% url 'planning:work_plan_submit' plan.pk %}" style="display:inline;" onsubmit="return confirm('Submit this Work Plan for curriculum leadership review?');">
+            {% csrf_token %}
+            <button class="button button--orange button--large" type="submit">Submit for review</button>
+          </form>
+        </div>
+        {% endif %}
+
+    </main>
+
+  </div>
 </div>
+
+{{ curriculum_json|json_script:"curriculum-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const curriculum = JSON.parse(document.getElementById("curriculum-data")?.textContent || "{}");
+  // Curriculum data
+  const topics = curriculum.topics || [];
+  const units = curriculum.units || [];
+  const objectives = curriculum.objectives || [];
+  const coverageData = curriculum.coverage || {};
+
+  const topicFilter = document.getElementById("library-topic-filter");
+  const unitFilter = document.getElementById("library-unit-filter");
+  const searchInput = document.getElementById("library-search-input");
+  const objContainer = document.getElementById("library-objectives-container");
+  const targetWeekSelect = document.getElementById("library-target-week");
+  const btnAddSelected = document.getElementById("btn-add-selected");
+  const btnAddTopic = document.getElementById("btn-add-topic");
+  const btnAddUnit = document.getElementById("btn-add-unit");
+  const btnToggleAll = document.getElementById("btn-toggle-all-visible");
+  const selectedCountChip = document.getElementById("library-selected-count");
+  const announcer = document.getElementById("live-announcer");
+  const topSaveBtn = document.getElementById("btn-save-draft-top");
+  const editorForm = document.getElementById("work-plan-editor-form");
+
+  let isDirty = false;
+
+  function announce(msg) {
+    if (announcer) {
+      announcer.textContent = msg;
+    }
+  }
+
+  // Top save button proxy
+  if (topSaveBtn && editorForm) {
+    topSaveBtn.addEventListener("click", function() {
+      isDirty = false;
+      editorForm.submit();
+    });
+  }
+
+  if (editorForm) {
+    editorForm.addEventListener("submit", function() {
+      isDirty = false;
+    });
+    editorForm.addEventListener("change", function() {
+      isDirty = true;
+    });
+    editorForm.addEventListener("input", function() {
+      isDirty = true;
+    });
+  }
+
+  window.addEventListener("beforeunload", function(e) {
+    if (isDirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+
+  // Track objectives currently in use in this Work Plan
+  let currentlyPlannedObjIds = new Set();
+  let currentlyPlannedObjectivesMap = new Map(); // objId -> Array of week sequence numbers
+
+  function scanCurrentPlanObjectives() {
+    currentlyPlannedObjIds.clear();
+    currentlyPlannedObjectivesMap.clear();
+
+    document.querySelectorAll(".week-card[data-is-instructional='true']").forEach(card => {
+      const chipEl = card.querySelector(".chip");
+      const weekSeq = chipEl ? chipEl.textContent.replace("Week", "").trim() : "";
+      const weekId = card.dataset.weekId;
+      const container = document.getElementById("week-obj-container-" + weekId);
+      if (!container) return;
+
+      container.querySelectorAll("input[name^='week_'][name$='_objectives']").forEach(inp => {
+        const objId = inp.value;
+        if (!objId) return;
+        currentlyPlannedObjIds.add(objId);
+        if (!currentlyPlannedObjectivesMap.has(objId)) {
+          currentlyPlannedObjectivesMap.set(objId, []);
+        }
+        if (weekSeq && !currentlyPlannedObjectivesMap.get(objId).includes(weekSeq)) {
+          currentlyPlannedObjectivesMap.get(objId).push(weekSeq);
+        }
+      });
+    });
+  }
+
+  // Calculate total lessons
+  function updateTotalLessons() {
+    let total = 0;
+    document.querySelectorAll(".week-lessons-input").forEach(inp => {
+      total += parseInt(inp.value, 10) || 0;
+    });
+    const summaryEl = document.getElementById("summary-total-lessons");
+    if (summaryEl) summaryEl.textContent = total;
+  }
+
+  document.querySelectorAll(".week-lessons-input").forEach(inp => {
+    inp.addEventListener("input", updateTotalLessons);
+  });
+  updateTotalLessons();
+
+  // Apply lesson count to all instructional weeks
+  document.querySelectorAll(".btn-apply-lessons-all").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const weekId = this.dataset.weekId;
+      const srcInput = document.getElementById("week_" + weekId + "_lessons");
+      if (!srcInput) return;
+      const countVal = srcInput.value;
+      document.querySelectorAll(".week-lessons-input").forEach(inp => {
+        inp.value = countVal;
+      });
+      updateTotalLessons();
+      announce(`Applied ${countVal} lessons to all instructional weeks.`);
+      isDirty = true;
+    });
+  });
+
+  // Target week highlight & sync
+  function updateTargetWeekHighlight() {
+    const targetId = targetWeekSelect?.value;
+    document.querySelectorAll(".week-card").forEach(card => {
+      if (card.dataset.weekId === targetId) {
+        card.classList.add("week-card--target");
+      } else {
+        card.classList.remove("week-card--target");
+      }
+    });
+  }
+
+  if (targetWeekSelect) {
+    targetWeekSelect.addEventListener("change", updateTargetWeekHighlight);
+    updateTargetWeekHighlight();
+  }
+
+  document.querySelectorAll(".btn-set-target").forEach(btn => {
+    btn.addEventListener("click", function() {
+      const targetId = this.dataset.targetId;
+      if (targetWeekSelect) {
+        targetWeekSelect.value = targetId;
+        updateTargetWeekHighlight();
+        announce("Set target week.");
+      }
+    });
+  });
+
+  // Populate or update units for a specific week's topic selector
+  function populateWeekUnits(weekId, selectedUnitId) {
+    const topicSelect = document.getElementById("week_" + weekId + "_topic");
+    const unitSelect = document.getElementById("week_" + weekId + "_subtopic");
+    if (!topicSelect || !unitSelect) return;
+
+    const topicId = topicSelect.value;
+    const currentUnit = selectedUnitId !== undefined ? selectedUnitId : unitSelect.value;
+    unitSelect.innerHTML = '<option value="">-- No unit / All units --</option>';
+
+    if (topicId) {
+      const matchingUnits = units.filter(u => u.topic_id === topicId);
+      matchingUnits.forEach(u => {
+        const uObjs = objectives.filter(o => o.subtopic_id === u.id && o.is_available);
+        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        if (currentUnit === u.id) {
+          opt.selected = true;
+        }
+
+        if (unusedCount === 0) {
+          if (currentUnit === u.id) {
+            opt.disabled = false;
+            opt.textContent = `${u.title} (All planned in this plan)`;
+          } else {
+            opt.disabled = true;
+            opt.textContent = `${u.title} (All planned in other weeks)`;
+          }
+        } else {
+          opt.disabled = false;
+          opt.textContent = `${u.title} (${unusedCount} unused)`;
+        }
+        unitSelect.appendChild(opt);
+      });
+    }
+  }
+
+  // Update primary topic and unit dropdowns across all week cards
+  function updatePrimaryTopicAndUnitOptions() {
+    document.querySelectorAll(".week-card[data-is-instructional='true']").forEach(card => {
+      const weekId = card.dataset.weekId;
+      const topicSelect = document.getElementById("week_" + weekId + "_topic");
+      if (!topicSelect) return;
+
+      const currentTopicVal = topicSelect.value;
+      topicSelect.querySelectorAll("option").forEach(opt => {
+        const tId = opt.value;
+        if (!tId) return;
+        const t = topics.find(item => item.id === tId);
+        if (!t) return;
+
+        const tObjs = objectives.filter(o => o.topic_id === tId && o.is_available);
+        const unusedCount = tObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+
+        if (unusedCount === 0) {
+          if (currentTopicVal === tId) {
+            opt.disabled = false;
+            opt.textContent = `${t.title} (All planned in this plan)`;
+          } else {
+            opt.disabled = true;
+            opt.textContent = `${t.title} (All planned in other weeks)`;
+          }
+        } else {
+          opt.disabled = false;
+          opt.textContent = `${t.title} (${unusedCount} unused)`;
+        }
+      });
+
+      populateWeekUnits(weekId, undefined);
+    });
+  }
+
+  // Primary topic dropdown change on each week -> updates that week's unit dropdown
+  document.querySelectorAll(".week-topic-select").forEach(select => {
+    select.addEventListener("change", function() {
+      const weekId = this.dataset.weekId;
+      populateWeekUnits(weekId, "");
+      updateCrossUnitBadgesForWeek(weekId);
+      isDirty = true;
+    });
+  });
+
+  document.querySelectorAll(".week-unit-select").forEach(select => {
+    select.addEventListener("change", function() {
+      const weekId = this.dataset.weekId;
+      updateCrossUnitBadgesForWeek(weekId);
+      isDirty = true;
+    });
+  });
+
+  // Update cross unit badges for a week
+  function updateCrossUnitBadgesForWeek(weekId) {
+    const topicSelect = document.getElementById("week_" + weekId + "_topic");
+    const unitSelect = document.getElementById("week_" + weekId + "_subtopic");
+    const primaryTopicId = topicSelect ? topicSelect.value : "";
+    const primaryUnitId = unitSelect ? unitSelect.value : "";
+
+    const container = document.getElementById("week-obj-container-" + weekId);
+    if (!container) return;
+
+    container.querySelectorAll(".selected-objective-card").forEach(card => {
+      const objTopicId = card.dataset.topicId;
+      const objSubtopicId = card.dataset.subtopicId;
+      const badge = card.querySelector(".cross-unit-badge");
+      if (!badge) return;
+
+      let isCross = false;
+      if (primaryTopicId && objTopicId && objTopicId !== primaryTopicId) {
+        isCross = true;
+      } else if (primaryUnitId && objSubtopicId && objSubtopicId !== primaryUnitId) {
+        isCross = true;
+      }
+
+      badge.style.display = isCross ? "inline-flex" : "none";
+    });
+  }
+
+  // Initial cross-unit badge evaluation for all weeks
+  document.querySelectorAll(".week-card[data-is-instructional='true']").forEach(card => {
+    updateCrossUnitBadgesForWeek(card.dataset.weekId);
+  });
+
+  // Coverage Dynamic Recalculation
+  const previouslyCoveredObjIds = new Set(
+    objectives.filter(o => o.previously_covered).map(o => o.id)
+  );
+  const totalSchemeObjectives = coverageData.total_objectives || objectives.length;
+  const totalSchemeTopics = coverageData.total_topics || topics.length;
+
+  function recalculateCoverage() {
+    const currentSelectedObjIds = new Set();
+    document.querySelectorAll("input[name^='week_'][name$='_objectives']").forEach(inp => {
+      currentSelectedObjIds.add(inp.value);
+    });
+
+    const projectedCovered = new Set([...previouslyCoveredObjIds, ...currentSelectedObjIds]);
+    const projectedCount = projectedCovered.size;
+    const currentCount = currentSelectedObjIds.size;
+    const remainingCount = Math.max(0, totalSchemeObjectives - projectedCount);
+
+    const projectedPercent = totalSchemeObjectives > 0
+      ? ((projectedCount / totalSchemeObjectives) * 100).toFixed(1)
+      : "0.0";
+    const prevPercent = totalSchemeObjectives > 0
+      ? ((previouslyCoveredObjIds.size / totalSchemeObjectives) * 100).toFixed(1)
+      : "0.0";
+    const currPercent = totalSchemeObjectives > 0
+      ? ((currentCount / totalSchemeObjectives) * 100).toFixed(1)
+      : "0.0";
+
+    // Count topics covered
+    let coveredTopicsCount = 0;
+    topics.forEach(t => {
+      const topicObjs = objectives.filter(o => o.topic_id === t.id);
+      const isCovered = topicObjs.some(o => projectedCovered.has(o.id));
+      if (isCovered) coveredTopicsCount++;
+    });
+
+    const topicPercent = totalSchemeTopics > 0
+      ? ((coveredTopicsCount / totalSchemeTopics) * 100).toFixed(1)
+      : "0.0";
+
+    // Update DOM
+    const badgeEl = document.getElementById("coverage-projected-percent-badge");
+    if (badgeEl) badgeEl.textContent = `${projectedPercent}%`;
+
+    const projObjsEl = document.getElementById("cov-stat-projected-objs");
+    if (projObjsEl) projObjsEl.textContent = projectedCount;
+
+    const topicsCovEl = document.getElementById("cov-stat-topics-covered");
+    if (topicsCovEl) topicsCovEl.textContent = coveredTopicsCount;
+
+    const topicPctEl = document.getElementById("cov-stat-topic-percent");
+    if (topicPctEl) topicPctEl.textContent = topicPercent;
+
+    const remainingEl = document.getElementById("cov-stat-remaining");
+    if (remainingEl) remainingEl.textContent = remainingCount;
+
+    const barPrev = document.getElementById("cov-bar-previous");
+    if (barPrev) barPrev.style.width = `${prevPercent}%`;
+
+    const barCurr = document.getElementById("cov-bar-current");
+    if (barCurr) barCurr.style.width = `${currPercent}%`;
+
+    const legendCurr = document.getElementById("cov-legend-curr");
+    if (legendCurr) legendCurr.textContent = currentCount;
+  }
+
+  // Update Topic and Unit filter option labels in Curriculum Library
+  function updateFilterOptionLabels() {
+    if (topicFilter) {
+      topicFilter.querySelectorAll("option").forEach(opt => {
+        const tId = opt.value;
+        if (!tId) return;
+        const t = topics.find(item => item.id === tId);
+        if (!t) return;
+        const tObjs = objectives.filter(o => o.topic_id === tId && o.is_available);
+        const unusedCount = tObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        if (unusedCount === 0) {
+          opt.textContent = `${t.title} (All ${tObjs.length} planned · Reinforcement available)`;
+        } else {
+          opt.textContent = `${t.title} (${unusedCount} unused · ${tObjs.length} available)`;
+        }
+      });
+    }
+
+    if (unitFilter && topicFilter?.value) {
+      const selectedTopic = topicFilter.value;
+      unitFilter.querySelectorAll("option").forEach(opt => {
+        const uId = opt.value;
+        if (!uId) return;
+        const u = units.find(item => item.id === uId);
+        if (!u) return;
+        const uObjs = objectives.filter(o => o.subtopic_id === uId && o.is_available);
+        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        if (unusedCount === 0) {
+          opt.textContent = `${u.title} (All ${uObjs.length} planned)`;
+        } else {
+          opt.textContent = `${u.title} (${unusedCount} unused · ${uObjs.length} available)`;
+        }
+      });
+    }
+  }
+
+  // Curriculum Library Filter Logic
+  function populateUnitFilter() {
+    if (!topicFilter || !unitFilter) return;
+    const selectedTopic = topicFilter.value;
+    unitFilter.innerHTML = '<option value="">All Units in this Topic</option>';
+
+    if (!selectedTopic) {
+      unitFilter.disabled = true;
+      btnAddTopic.disabled = true;
+      btnAddUnit.disabled = true;
+    } else {
+      unitFilter.disabled = false;
+      btnAddTopic.disabled = false;
+      btnAddUnit.disabled = true;
+      const matchingUnits = units.filter(u => u.topic_id === selectedTopic && !u.is_fully_covered);
+      matchingUnits.forEach(u => {
+        const uObjs = objectives.filter(o => o.subtopic_id === u.id && o.is_available);
+        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        if (unusedCount === 0) {
+          opt.textContent = `${u.title} (All ${uObjs.length} planned)`;
+        } else {
+          opt.textContent = `${u.title} (${unusedCount} unused · ${uObjs.length} available)`;
+        }
+        unitFilter.appendChild(opt);
+      });
+    }
+    renderLibraryObjectives();
+  }
+
+  if (topicFilter) {
+    topicFilter.addEventListener("change", populateUnitFilter);
+  }
+  if (unitFilter) {
+    unitFilter.addEventListener("change", function() {
+      btnAddUnit.disabled = !this.value;
+      renderLibraryObjectives();
+    });
+  }
+  if (searchInput) {
+    searchInput.addEventListener("input", renderLibraryObjectives);
+  }
+
+  function getFilteredObjectives() {
+    const selectedTopic = topicFilter ? topicFilter.value : "";
+    const selectedUnit = unitFilter ? unitFilter.value : "";
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    if (!selectedTopic && !query) {
+      return [];
+    }
+
+    return objectives.filter(obj => {
+      // Must be available (not previously covered in previous semesters)
+      if (!obj.is_available) {
+        return false;
+      }
+      if (selectedTopic && obj.topic_id !== selectedTopic) {
+        return false;
+      }
+      if (selectedUnit && obj.subtopic_id !== selectedUnit) {
+        return false;
+      }
+      if (query) {
+        const codeMatch = obj.code.toLowerCase().includes(query);
+        const textMatch = obj.text.toLowerCase().includes(query);
+        if (!codeMatch && !textMatch) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderLibraryObjectives() {
+    if (!objContainer) return;
+    const selectedTopic = topicFilter ? topicFilter.value : "";
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    if (!selectedTopic && !query) {
+      objContainer.innerHTML = `
+        <div style="padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
+          Select a Topic above to explore learning objectives.
+        </div>`;
+      if (btnToggleAll) btnToggleAll.disabled = true;
+      updateSelectedCount();
+      return;
+    }
+
+    const filtered = getFilteredObjectives();
+    if (filtered.length === 0) {
+      objContainer.innerHTML = `
+        <div style="padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
+          No available learning objectives found matching your criteria.
+        </div>`;
+      if (btnToggleAll) btnToggleAll.disabled = true;
+      updateSelectedCount();
+      return;
+    }
+
+    if (btnToggleAll) btnToggleAll.disabled = false;
+    objContainer.innerHTML = "";
+
+    // Group topic-level objectives vs unit objectives
+    const topicLevel = filtered.filter(o => !o.subtopic_id);
+    const unitLevel = filtered.filter(o => !!o.subtopic_id);
+
+    if (topicLevel.length > 0 && unitLevel.length > 0) {
+      const header1 = document.createElement("div");
+      header1.style.cssText = "font-size:11px; font-weight:800; color:var(--accent-blue); text-transform:uppercase; margin:4px 0 2px; padding-left:2px;";
+      header1.textContent = "General Topic Objectives";
+      objContainer.appendChild(header1);
+    }
+
+    topicLevel.forEach(obj => appendObjectiveRow(obj));
+
+    if (topicLevel.length > 0 && unitLevel.length > 0) {
+      const header2 = document.createElement("div");
+      header2.style.cssText = "font-size:11px; font-weight:800; color:var(--accent-orange); text-transform:uppercase; margin:8px 0 2px; padding-left:2px;";
+      header2.textContent = "Unit Objectives";
+      objContainer.appendChild(header2);
+    }
+
+    unitLevel.forEach(obj => appendObjectiveRow(obj));
+
+    updateSelectedCount();
+  }
+
+  function appendObjectiveRow(obj) {
+    const plannedWeeks = currentlyPlannedObjectivesMap.get(obj.id);
+    const isPlannedInPlan = plannedWeeks && plannedWeeks.length > 0;
+
+    const row = document.createElement("label");
+    row.className = "objective-item-row" + (isPlannedInPlan ? " objective-item-row--in-plan" : "");
+    
+    let plannedPillHtml = "";
+    if (isPlannedInPlan) {
+      plannedPillHtml = `<span class="obj-planned-pill" title="Already added in this Work Plan (remains usable for spiral learning / reinforcement)">✓ Planned in Week ${plannedWeeks.join(", ")}</span>`;
+    }
+
+    row.innerHTML = `
+      <input type="checkbox" class="lib-obj-checkbox" value="${obj.id}" data-code="${obj.code}" data-text="${escapeHtml(obj.text)}" data-topic-id="${obj.topic_id || ''}" data-subtopic-id="${obj.subtopic_id || ''}" data-topic-title="${escapeHtml(obj.topic_title || '')}" data-subtopic-title="${escapeHtml(obj.subtopic_title || '')}">
+      <div style="flex:1;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+          <strong style="color:${isPlannedInPlan ? 'var(--accent-purple)' : 'var(--accent-blue)'};">${obj.code}</strong>
+          ${plannedPillHtml}
+        </div>
+        <span style="display:block; margin-top:2px;">${obj.text}</span>
+        ${obj.subtopic_title ? `<small style="color:var(--ink-soft); display:block; margin-top:2px;">Unit: ${obj.subtopic_title}</small>` : ''}
+      </div>
+    `;
+    objContainer.appendChild(row);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function updateSelectedCount() {
+    const checked = objContainer ? objContainer.querySelectorAll(".lib-obj-checkbox:checked") : [];
+    const count = checked.length;
+    if (selectedCountChip) selectedCountChip.textContent = `${count} selected`;
+    if (btnAddSelected) btnAddSelected.disabled = (count === 0);
+  }
+
+  if (objContainer) {
+    objContainer.addEventListener("change", function(e) {
+      if (e.target.classList.contains("lib-obj-checkbox")) {
+        updateSelectedCount();
+      }
+    });
+  }
+
+  if (btnToggleAll) {
+    btnToggleAll.addEventListener("click", function() {
+      const cbs = objContainer.querySelectorAll(".lib-obj-checkbox");
+      const allChecked = Array.from(cbs).every(cb => cb.checked);
+      cbs.forEach(cb => cb.checked = !allChecked);
+      this.textContent = allChecked ? "Select all" : "Deselect all";
+      updateSelectedCount();
+    });
+  }
+
+  // Adding objectives to target week
+  function addObjectivesToTargetWeek(objsToAdd) {
+    const targetWeekId = targetWeekSelect?.value;
+    if (!targetWeekId) {
+      alert("Please select a target teaching week first.");
+      return;
+    }
+
+    const container = document.getElementById("week-obj-container-" + targetWeekId);
+    if (!container) return;
+
+    const emptyMsg = container.querySelector(".empty-objs-msg");
+    if (emptyMsg) emptyMsg.remove();
+
+    // Find existing IDs in this week
+    const existingIds = new Set();
+    container.querySelectorAll("input[name^='week_'][name$='_objectives']").forEach(inp => {
+      existingIds.add(inp.value);
+    });
+
+    let addedCount = 0;
+    objsToAdd.forEach(obj => {
+      if (existingIds.has(obj.id)) return; // Deduplicate within the same week
+      existingIds.add(obj.id);
+      addedCount++;
+
+      const card = document.createElement("div");
+      card.className = "selected-objective-card";
+      card.dataset.objId = obj.id;
+      card.dataset.topicId = obj.topic_id || "";
+      card.dataset.subtopicId = obj.subtopic_id || "";
+
+      card.innerHTML = `
+        <input type="hidden" name="week_${targetWeekId}_objectives" value="${obj.id}">
+        <div style="flex:1;">
+          <strong style="color:var(--accent-blue);">${obj.code}</strong> — ${obj.text}
+          <div style="margin-top:4px; font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+            <span>[Source: ${obj.topic_title}${obj.subtopic_title ? ' · ' + obj.subtopic_title : ''}]</span>
+            <span class="cross-unit-badge" style="display:none;">Cross-unit</span>
+          </div>
+        </div>
+        <button type="button" class="remove-btn btn-remove-obj" aria-label="Remove objective ${obj.code}">✕</button>
+      `;
+      container.appendChild(card);
+    });
+
+    updateCrossUnitBadgesForWeek(targetWeekId);
+    updateWeekCount(targetWeekId);
+    
+    // Refresh live in-plan tracking, library styling, topic/unit options, and coverage
+    scanCurrentPlanObjectives();
+    renderLibraryObjectives();
+    updatePrimaryTopicAndUnitOptions();
+    updateFilterOptionLabels();
+    recalculateCoverage();
+
+    announce(`Added ${addedCount} objective(s) to week.`);
+    isDirty = true;
+  }
+
+  function updateWeekCount(weekId) {
+    const card = document.getElementById("week-card-" + weekId);
+    if (!card) return;
+    const container = document.getElementById("week-obj-container-" + weekId);
+    const countEl = card.querySelector(".week-obj-count");
+    if (countEl && container) {
+      countEl.textContent = container.querySelectorAll(".selected-objective-card").length;
+    }
+  }
+
+  if (btnAddSelected) {
+    btnAddSelected.addEventListener("click", function() {
+      const selectedBoxes = objContainer.querySelectorAll(".lib-obj-checkbox:checked");
+      const objs = Array.from(selectedBoxes).map(cb => ({
+        id: cb.value,
+        code: cb.dataset.code,
+        text: cb.dataset.text,
+        topic_id: cb.dataset.topicId,
+        subtopic_id: cb.dataset.subtopicId,
+        topic_title: cb.dataset.topicTitle,
+        subtopic_title: cb.dataset.subtopicTitle,
+      }));
+      addObjectivesToTargetWeek(objs);
+      selectedBoxes.forEach(cb => cb.checked = false);
+      updateSelectedCount();
+    });
+  }
+
+  if (btnAddTopic) {
+    btnAddTopic.addEventListener("click", function() {
+      const topicId = topicFilter.value;
+      if (!topicId) return;
+      // Prioritize unused objectives for batch add
+      const unusedTopicObjs = objectives.filter(o => o.topic_id === topicId && o.is_available && !currentlyPlannedObjIds.has(o.id));
+      if (unusedTopicObjs.length > 0) {
+        addObjectivesToTargetWeek(unusedTopicObjs);
+      } else {
+        // If all are already planned, allow adding all available for reinforcement with feedback
+        const allAvailable = objectives.filter(o => o.topic_id === topicId && o.is_available);
+        if (confirm("All objectives in this Topic are already planned in this Work Plan. Do you want to add them to this week for spiral reinforcement?")) {
+          addObjectivesToTargetWeek(allAvailable);
+        }
+      }
+    });
+  }
+
+  if (btnAddUnit) {
+    btnAddUnit.addEventListener("click", function() {
+      const unitId = unitFilter.value;
+      if (!unitId) return;
+      // Prioritize unused objectives for batch add
+      const unusedUnitObjs = objectives.filter(o => o.subtopic_id === unitId && o.is_available && !currentlyPlannedObjIds.has(o.id));
+      if (unusedUnitObjs.length > 0) {
+        addObjectivesToTargetWeek(unusedUnitObjs);
+      } else {
+        const allAvailable = objectives.filter(o => o.subtopic_id === unitId && o.is_available);
+        if (confirm("All objectives in this Unit are already planned in this Work Plan. Do you want to add them to this week for spiral reinforcement?")) {
+          addObjectivesToTargetWeek(allAvailable);
+        }
+      }
+    });
+  }
+
+  // Remove objective handler (delegated)
+  document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("btn-remove-obj")) {
+      const card = e.target.closest(".selected-objective-card");
+      if (!card) return;
+      const container = card.closest(".week-objectives-container");
+      const weekId = container?.dataset.weekId;
+      card.remove();
+      if (container && container.querySelectorAll(".selected-objective-card").length === 0) {
+        container.innerHTML = `
+          <div class="empty-objs-msg" style="color:var(--ink-soft); font-size:13px; font-style:italic; padding:8px 4px;">
+            No learning objectives added yet. Use the Curriculum Library on the left to add objectives.
+          </div>`;
+      }
+      if (weekId) {
+        updateWeekCount(weekId);
+      }
+
+      // Refresh live in-plan tracking, library styling, topic/unit options, and coverage
+      scanCurrentPlanObjectives();
+      renderLibraryObjectives();
+      updatePrimaryTopicAndUnitOptions();
+      updateFilterOptionLabels();
+      recalculateCoverage();
+
+      announce("Objective removed from week.");
+      isDirty = true;
+    }
+  });
+
+  // Initial startup scan and setup
+  scanCurrentPlanObjectives();
+  updatePrimaryTopicAndUnitOptions();
+  updateFilterOptionLabels();
+
+});
+</script>
 {% endblock %}

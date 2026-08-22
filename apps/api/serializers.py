@@ -28,6 +28,8 @@ class WorkPlanCreateSerializer(serializers.Serializer):
 class WorkPlanWeekSaveSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     topic_id = serializers.UUIDField(required=False, allow_null=True)
+    subtopic_id = serializers.UUIDField(required=False, allow_null=True)
+    lessons_per_week = serializers.IntegerField(required=False, min_value=0)
     objectives = serializers.ListField(child=serializers.UUIDField(), required=False)
     remarks = serializers.CharField(required=False, allow_blank=True, max_length=10000)
 

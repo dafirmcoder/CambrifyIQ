@@ -6,10 +6,10 @@ from django.test import TestCase
 
 from apps.curriculum.models import (
     CurriculumFramework,
-    SchemeOfWork,
-    Topic,
-    Subtopic,
     LearningObjective,
+    SchemeOfWork,
+    Subtopic,
+    Topic,
 )
 
 
@@ -50,7 +50,7 @@ class ImportFrameworkTests(TestCase):
 
         call_command("import_framework", "0058 English.xlsx")
 
-        framework = CurriculumFramework.objects.get(name="Cambridge Primary")
+        self.assertTrue(CurriculumFramework.objects.filter(name="Cambridge Primary").exists())
         scheme = SchemeOfWork.objects.get(subject_code="0058", year_group="Stage 1")
         self.assertEqual(scheme.version, 1)
 

@@ -85,7 +85,9 @@ class Topic(TimeStampedModel):
     class Meta:
         ordering = ("scheme", "sequence")
         constraints = [
-            models.UniqueConstraint(fields=("scheme", "sequence"), name="unique_scheme_topic_sequence"),
+            models.UniqueConstraint(
+                fields=("scheme", "sequence"), name="unique_scheme_topic_sequence"
+            ),
             models.UniqueConstraint(
                 fields=("scheme", "code"),
                 condition=~Q(code=""),
@@ -107,7 +109,9 @@ class Subtopic(TimeStampedModel):
     class Meta:
         ordering = ("topic", "sequence")
         constraints = [
-            models.UniqueConstraint(fields=("topic", "sequence"), name="unique_topic_subtopic_sequence"),
+            models.UniqueConstraint(
+                fields=("topic", "sequence"), name="unique_topic_subtopic_sequence"
+            ),
             models.UniqueConstraint(
                 fields=("topic", "code"),
                 condition=~Q(code=""),
@@ -128,7 +132,11 @@ class LearningObjective(TimeStampedModel):
         Topic, null=True, blank=True, on_delete=models.SET_NULL, related_name="learning_objectives"
     )
     subtopic = models.ForeignKey(
-        Subtopic, null=True, blank=True, on_delete=models.SET_NULL, related_name="learning_objectives"
+        Subtopic,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="learning_objectives",
     )
     code = models.CharField(max_length=64)
     text = models.TextField()
@@ -136,7 +144,9 @@ class LearningObjective(TimeStampedModel):
 
     class Meta:
         ordering = ("scheme", "sequence", "code")
-        constraints = [models.UniqueConstraint(fields=("scheme", "code"), name="unique_scheme_lo_code")]
+        constraints = [
+            models.UniqueConstraint(fields=("scheme", "code"), name="unique_scheme_lo_code")
+        ]
 
     def clean(self):
         if self.topic_id and self.topic.scheme_id != self.scheme_id:
@@ -145,7 +155,9 @@ class LearningObjective(TimeStampedModel):
             if self.subtopic.topic.scheme_id != self.scheme_id:
                 raise ValidationError({"subtopic": "The subtopic must belong to this scheme."})
             if self.topic_id and self.subtopic.topic_id != self.topic_id:
-                raise ValidationError({"subtopic": "The subtopic must belong to the selected topic."})
+                raise ValidationError(
+                    {"subtopic": "The subtopic must belong to the selected topic."}
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -166,7 +178,9 @@ class AssessmentObjective(TimeStampedModel):
 
     class Meta:
         ordering = ("scheme", "sequence", "code")
-        constraints = [models.UniqueConstraint(fields=("scheme", "code"), name="unique_scheme_ao_code")]
+        constraints = [
+            models.UniqueConstraint(fields=("scheme", "code"), name="unique_scheme_ao_code")
+        ]
 
     def __str__(self):
         return f"{self.code}: {self.text[:60]}"

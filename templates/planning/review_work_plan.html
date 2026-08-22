@@ -1,60 +1,150 @@
 {% extends "base.html" %}
-{% block title %}Review Work Plan A {{ plan.assignment.subject.name }}{% endblock %}
+{% block title %}Review Work Plan · {{ plan.assignment.subject.name }}{% endblock %}
 {% block content %}
-<div class="page-shell" style="display: grid; grid-template-columns: 3fr 1fr; gap: 2rem;">
+<div class="page-shell" style="display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start;">
   <div>
     <header class="page-header">
-      <div>
-        <span class="role-chip">{{ plan.get_status_display }}</span>
-        <h1>{{ plan.assignment.subject.name }} A {{ plan.assignment.school_class.name }}</h1>
-        <p>Teacher: {{ plan.author.get_full_name|default:plan.author.username }}</p>
-        <p>{{ plan.term.name }} A {{ plan.scheme.title }} A revision {{ plan.revision }}</p>
+      <div class="page-header__left">
+        <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
+        <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+        <p>Teacher: <strong>{{ plan.author.get_full_name|default:plan.author.email }}</strong></p>
+        <p>{{ plan.term.name }} · {{ plan.scheme.title }} · Revision {{ plan.revision }}</p>
       </div>
-      <div>
-        <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}">Preview PDF</a>
+      <div class="button-row">
+        <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}" target="_blank">Preview PDF</a>
         <a class="button button--secondary" href="{% url 'planning:review_queue' %}">Back to Queue</a>
       </div>
     </header>
 
+    {% if coverage %}
+    {# Coverage Summary Card #}
+    <div class="panel panel--coverage" style="margin-bottom:20px; padding:16px 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+        <strong style="font-size:14px; color:var(--ink);">Curriculum Coverage</strong>
+        <span class="chip chip--approved">{{ coverage.projected_objective_percent }}% Planned</span>
+      </div>
+      <div class="coverage-progress-track" style="margin-bottom:10px;">
+        <div class="coverage-progress-prev" style="width:{{ coverage.previous_objective_percent }}%;"></div>
+        <div class="coverage-progress-curr" style="width:{% if coverage.total_objectives %}{% widthratio coverage.current_plan_objectives coverage.total_objectives 100 %}{% else %}0{% endif %}%;"></div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:10px; font-size:12px;">
+        <div>
+          <span style="color:var(--ink-soft); display:block;">Total Objectives</span>
+          <strong>{{ coverage.total_objectives }}</strong>
+        </div>
+        <div>
+          <span style="color:var(--ink-soft); display:block;">Previous Coverage</span>
+          <strong style="color:var(--accent-green);">{{ coverage.previously_covered_objectives }} ({{ coverage.previous_objective_percent }}%)</strong>
+        </div>
+        <div>
+          <span style="color:var(--ink-soft); display:block;">This Plan Adds</span>
+          <strong style="color:var(--accent-blue);">{{ coverage.current_plan_objectives }}</strong>
+        </div>
+        <div>
+          <span style="color:var(--ink-soft); display:block;">Topics Covered</span>
+          <strong>{{ coverage.covered_topics }} / {{ coverage.total_topics }} ({{ coverage.projected_topic_percent }}%)</strong>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <section class="panel">
-      <header class="panel__header"><h2>Calendar weeks</h2></header>
-      <div class="panel__body">
+      <header class="panel__header"><h2>Calendar Weeks Schedule</h2></header>
+      <div class="panel__body" style="display:flex; flex-direction:column; gap:16px;">
       {% for week in weeks %}
-        <fieldset disabled>
-          <legend>Week {{ week.sequence }} A {{ week.week_label }}{% if week.event_label %} ?" {{ week.event_label }}{% endif %}</legend>
-          {% if week.is_instructional %}
-            <p><label>Topic</label><select><option>{{ week.topic.title|default:"No topic selected" }}</option></select></p>
-            <fieldset><legend>Learning objectives</legend>
-              {% for item in week.objective_selections.all %}
-                <label><input type="checkbox" checked disabled> {{ item.code_snapshot }} ?" {{ item.text_snapshot }}</label><br>
-              {% empty %}
-                <p>No learning objectives selected.</p>
-              {% endfor %}
-            </fieldset>
-          {% else %}
-            <p><strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional week" }}</p>
-          {% endif %}
-          <p><label>Remarks</label><textarea rows="3" disabled>{{ week.remarks }}</textarea></p>
-        </fieldset>
+        <article class="week-card {% if not week.is_instructional %}week-row--special{% endif %}" style="margin:0;">
+          <header class="week-card__header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="chip {% if week.is_instructional %}chip--approved{% else %}chip--submitted{% endif %}">
+                Week {{ week.sequence }}
+              </span>
+              <strong>{{ week.week_label }}</strong>
+              {% if week.month_label %}
+                <span style="color:var(--ink-soft); font-size:13px;">({{ week.month_label }})</span>
+              {% endif %}
+            </div>
+            <div>
+              {% if week.is_instructional %}
+                <span class="chip chip--draft">Lessons: {{ week.lessons_per_week }}</span>
+              {% else %}
+                <span class="week-type-badge week-type-badge--special">{{ week.event_label|default:"Special event" }}</span>
+              {% endif %}
+            </div>
+          </header>
+          <div class="week-card__body">
+            {% if week.is_instructional %}
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block;">Primary Topic</span>
+                  <div style="font-size:14px; font-weight:600;">{{ week.topic.title|default:"None selected" }}</div>
+                </div>
+                <div>
+                  <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block;">Primary Unit</span>
+                  <div style="font-size:14px; font-weight:600;">{{ week.subtopic.title|default:"All units / None" }}</div>
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:6px;">Learning Objectives ({{ week.selected_objectives_details|length }})</span>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  {% for item in week.selected_objectives_details %}
+                    <div style="padding:8px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); font-size:13px;">
+                      <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
+                      <div style="margin-top:2px; font-size:11.5px; color:var(--ink-soft);">
+                        <span>Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}</span>
+                        {% if week.topic_id and item.topic_id != week.topic_id|stringformat:"s" or week.subtopic_id and item.subtopic_id != week.subtopic_id|stringformat:"s" %}
+                          <span class="cross-unit-badge">Cross-unit</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% empty %}
+                    <p style="color:var(--ink-soft); font-size:13px; font-style:italic;">No learning objectives selected.</p>
+                  {% endfor %}
+                </div>
+              </div>
+            {% else %}
+              <p style="color:var(--ink-soft); font-size:13.5px; margin:0;">
+                <strong>School calendar event:</strong> {{ week.event_label|default:"Non-instructional week" }}
+              </p>
+            {% endif %}
+
+            {% if week.remarks %}
+              <div style="margin-top:4px;">
+                <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block;">Remarks</span>
+                <p style="font-size:13.5px; margin:2px 0 0;">{{ week.remarks }}</p>
+              </div>
+            {% endif %}
+          </div>
+        </article>
       {% endfor %}
-      <p><label>Resources</label><textarea rows="4" disabled>{{ plan.resources }}</textarea></p>
+
+      {% if plan.resources %}
+        <div style="margin-top:10px; padding:16px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-md);">
+          <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;">General Resources</span>
+          <p style="font-size:13.5px; margin:0;">{{ plan.resources }}</p>
+        </div>
+      {% endif %}
       </div>
     </section>
   </div>
   
   <div>
-    <section class="panel" style="position: sticky; top: 2rem;">
+    <section class="panel panel--blue" style="position: sticky; top: 24px;">
       <header class="panel__header"><h2>Leader Review</h2></header>
       <div class="panel__body">
         <form method="post">
           {% csrf_token %}
-          <p>
-            <label for="comment">Review Comment</label>
-            <textarea id="comment" name="comment" rows="6" placeholder="Required if returning to teacher..."></textarea>
-          </p>
-          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-            <button class="button button--primary" type="submit" name="action" value="approve">Approve</button>
-            <button class="button button--danger" type="submit" name="action" value="return">Return</button>
+          <div style="margin-bottom:14px;">
+            <label for="comment" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:6px;">Review Comment</label>
+            <textarea id="comment" name="comment" rows="5" placeholder="Required if returning plan to teacher..." style="width:100%;"></textarea>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="button button--primary" type="submit" name="action" value="approve" style="width:100%;">
+              ✓ Approve Work Plan
+            </button>
+            <button class="button button--danger" type="submit" name="action" value="return" style="width:100%;">
+              ↩ Return to Teacher
+            </button>
           </div>
         </form>
       </div>

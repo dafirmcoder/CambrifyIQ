@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.curriculum.models import LearningObjective, Subtopic, Topic
 from apps.planning.models import (
     LessonPlan,
     LessonPlanEvent,
@@ -74,6 +75,7 @@ def create_work_plan(*, school, author, assignment, academic_year, term, scheme)
                 week_label=calendar_week.label,
                 event_label=calendar_week.event_label,
                 is_instructional=calendar_week.is_instructional,
+                lessons_per_week=1 if calendar_week.is_instructional else 0,
             )
             week.full_clean()
             week.save()
@@ -103,24 +105,278 @@ def save_work_plan(*, plan, actor, revision, resources, week_updates):
     with transaction.atomic():
         for item in week_updates:
             week = plan.weeks.get(pk=item["id"])
-            week.topic_id = item.get("topic_id") or None
+            if week.is_instructional:
+                week.topic_id = item.get("topic_id") or None
+                week.subtopic_id = item.get("subtopic_id") or None
+                lessons = item.get("lessons_per_week")
+                if lessons is not None:
+                    week.lessons_per_week = int(lessons)
+                elif week.lessons_per_week == 0:
+                    week.lessons_per_week = 1
+            else:
+                week.topic_id = None
+                week.subtopic_id = None
+                week.lessons_per_week = 0
+
             week.remarks = item.get("remarks", "")
             week.full_clean()
-            week.save(update_fields=("topic", "remarks", "updated_at"))
+            week.save(
+                update_fields=("topic", "subtopic", "lessons_per_week", "remarks", "updated_at")
+            )
             WorkPlanWeekObjective.all_objects.filter(work_plan_week=week).delete()
-            for objective in item.get("objectives", []):
-                WorkPlanWeekObjective.objects.create(
-                    school=plan.school,
-                    work_plan_week=week,
-                    objective_id=objective,
-                    code_snapshot="",
-                    text_snapshot="",
-                )
+            if week.is_instructional:
+                seen = set()
+                deduped_objectives = []
+                for obj_id in item.get("objectives", []):
+                    obj_str = str(obj_id)
+                    if obj_str not in seen and obj_str:
+                        seen.add(obj_str)
+                        deduped_objectives.append(obj_id)
+                for objective in deduped_objectives:
+                    WorkPlanWeekObjective.objects.create(
+                        school=plan.school,
+                        work_plan_week=week,
+                        objective_id=objective,
+                        code_snapshot="",
+                        text_snapshot="",
+                    )
         plan.resources = resources
         plan.revision += 1
         plan.revision_token = uuid.uuid4()
         plan.save(update_fields=("resources", "revision", "revision_token", "updated_at"))
     return plan
+
+
+ELIGIBLE_PREVIOUS_COVERAGE_STATUSES = {WorkPlan.Status.APPROVED, WorkPlan.Status.ARCHIVED}
+
+
+def get_previous_covered_objective_ids(
+    *, school, school_class, subject, scheme, before_date, exclude_plan_id=None
+):
+    """Return distinct UUIDs of LearningObjectives covered in eligible previous Work Plans.
+
+    Scoped to:
+      - same school
+      - same school_class (from assignment.school_class)
+      - same subject (from assignment.subject)
+      - same scheme
+      - status in ELIGIBLE_PREVIOUS_COVERAGE_STATUSES
+      - term.ends_on < before_date
+    """
+    qs = WorkPlanWeekObjective.all_objects.filter(
+        school=school,
+        work_plan_week__work_plan__assignment__school_class=school_class,
+        work_plan_week__work_plan__assignment__subject=subject,
+        work_plan_week__work_plan__scheme=scheme,
+        work_plan_week__work_plan__status__in=ELIGIBLE_PREVIOUS_COVERAGE_STATUSES,
+        work_plan_week__work_plan__term__ends_on__lt=before_date,
+    )
+    if exclude_plan_id:
+        qs = qs.exclude(work_plan_week__work_plan_id=exclude_plan_id)
+    return set(qs.values_list("objective_id", flat=True).distinct())
+
+
+def calculate_work_plan_coverage(work_plan, selected_objective_ids=None):
+    """Calculate historical, current, and projected curriculum and topic coverage for a Work Plan."""
+    scheme = work_plan.scheme
+    school = work_plan.school
+    school_class = work_plan.assignment.school_class
+    subject = work_plan.assignment.subject
+    before_date = work_plan.term.starts_on
+
+    # All objectives in scheme
+    all_scheme_objs = list(
+        LearningObjective.objects.filter(scheme=scheme).values(
+            "id", "topic_id", "subtopic_id", "code", "text"
+        )
+    )
+    total_objectives = len(all_scheme_objs)
+
+    # Previously covered objectives
+    previous_obj_ids = get_previous_covered_objective_ids(
+        school=school,
+        school_class=school_class,
+        subject=subject,
+        scheme=scheme,
+        before_date=before_date,
+        exclude_plan_id=work_plan.id,
+    )
+    previously_covered_count = len(previous_obj_ids)
+
+    # Current plan selected objectives
+    if selected_objective_ids is None:
+        current_obj_ids = set(
+            WorkPlanWeekObjective.all_objects.filter(
+                work_plan_week__work_plan=work_plan
+            ).values_list("objective_id", flat=True)
+        )
+    else:
+        current_obj_ids = set(selected_objective_ids)
+    current_plan_objectives = len(current_obj_ids)
+
+    # Projected coverage (union)
+    projected_covered_ids = previous_obj_ids | current_obj_ids
+    projected_covered_count = len(projected_covered_ids)
+    remaining_objectives = max(0, total_objectives - projected_covered_count)
+
+    # Percentage calculations (safe against 0 total)
+    if total_objectives > 0:
+        previous_objective_percent = round((previously_covered_count / total_objectives) * 100, 1)
+        projected_objective_percent = round((projected_covered_count / total_objectives) * 100, 1)
+    else:
+        previous_objective_percent = 0.0
+        projected_objective_percent = 0.0
+
+    # Topic coverage calculation
+    topics_with_objs = {}
+    for obj in all_scheme_objs:
+        t_id = obj["topic_id"]
+        if t_id:
+            if t_id not in topics_with_objs:
+                topics_with_objs[t_id] = set()
+            topics_with_objs[t_id].add(obj["id"])
+
+    total_topics = len(topics_with_objs)
+    covered_topics = 0
+    for _t_id, obj_set in topics_with_objs.items():
+        if obj_set & projected_covered_ids:
+            covered_topics += 1
+
+    if total_topics > 0:
+        projected_topic_percent = round((covered_topics / total_topics) * 100, 1)
+    else:
+        projected_topic_percent = 0.0
+
+    return {
+        "total_objectives": total_objectives,
+        "previously_covered_objectives": previously_covered_count,
+        "current_plan_objectives": current_plan_objectives,
+        "projected_covered_objectives": projected_covered_count,
+        "remaining_objectives": remaining_objectives,
+        "previous_objective_percent": previous_objective_percent,
+        "projected_objective_percent": projected_objective_percent,
+        "total_topics": total_topics,
+        "covered_topics": covered_topics,
+        "projected_topic_percent": projected_topic_percent,
+    }
+
+
+def get_curriculum_coverage_data(work_plan):
+    """Return enriched curriculum tree with topic/unit coverage stats and objective availability."""
+    scheme = work_plan.scheme
+    school = work_plan.school
+    school_class = work_plan.assignment.school_class
+    subject = work_plan.assignment.subject
+    before_date = work_plan.term.starts_on
+
+    previous_obj_ids = get_previous_covered_objective_ids(
+        school=school,
+        school_class=school_class,
+        subject=subject,
+        scheme=scheme,
+        before_date=before_date,
+        exclude_plan_id=work_plan.id,
+    )
+    current_obj_ids = set(
+        WorkPlanWeekObjective.all_objects.filter(work_plan_week__work_plan=work_plan).values_list(
+            "objective_id", flat=True
+        )
+    )
+
+    topics = list(Topic.objects.filter(scheme=scheme).order_by("sequence"))
+    subtopics = list(
+        Subtopic.objects.filter(topic__scheme=scheme).select_related("topic").order_by("sequence")
+    )
+    objectives = list(
+        LearningObjective.objects.filter(scheme=scheme)
+        .select_related("topic", "subtopic")
+        .order_by("sequence")
+    )
+
+    topic_objs = {}
+    subtopic_objs = {}
+    for obj in objectives:
+        t_id = str(obj.topic_id) if obj.topic_id else None
+        st_id = str(obj.subtopic_id) if obj.subtopic_id else None
+        if t_id:
+            topic_objs.setdefault(t_id, []).append(obj)
+        if st_id:
+            subtopic_objs.setdefault(st_id, []).append(obj)
+
+    topic_list = []
+    for t in topics:
+        t_id_str = str(t.pk)
+        objs = topic_objs.get(t_id_str, [])
+        total_count = len(objs)
+        prev_covered_count = sum(1 for o in objs if o.pk in previous_obj_ids)
+        available_count = total_count - prev_covered_count
+        covered_percent = (
+            round((prev_covered_count / total_count) * 100, 1) if total_count > 0 else 0.0
+        )
+        topic_list.append(
+            {
+                "id": t_id_str,
+                "title": t.title,
+                "sequence": t.sequence,
+                "total_objectives_count": total_count,
+                "previously_covered_count": prev_covered_count,
+                "available_objectives_count": available_count,
+                "covered_percent": covered_percent,
+                "is_fully_covered": total_count > 0 and available_count == 0,
+            }
+        )
+
+    unit_list = []
+    for st in subtopics:
+        st_id_str = str(st.pk)
+        objs = subtopic_objs.get(st_id_str, [])
+        total_count = len(objs)
+        prev_covered_count = sum(1 for o in objs if o.pk in previous_obj_ids)
+        available_count = total_count - prev_covered_count
+        covered_percent = (
+            round((prev_covered_count / total_count) * 100, 1) if total_count > 0 else 0.0
+        )
+        unit_list.append(
+            {
+                "id": st_id_str,
+                "topic_id": str(st.topic_id),
+                "title": st.title,
+                "sequence": st.sequence,
+                "total_objectives_count": total_count,
+                "previously_covered_count": prev_covered_count,
+                "available_objectives_count": available_count,
+                "covered_percent": covered_percent,
+                "is_fully_covered": total_count > 0 and available_count == 0,
+            }
+        )
+
+    objective_list = []
+    for obj in objectives:
+        is_prev = obj.pk in previous_obj_ids
+        is_curr = obj.pk in current_obj_ids
+        objective_list.append(
+            {
+                "id": str(obj.pk),
+                "code": obj.code,
+                "text": obj.text,
+                "topic_id": str(obj.topic_id) if obj.topic_id else None,
+                "subtopic_id": str(obj.subtopic_id) if obj.subtopic_id else None,
+                "topic_title": obj.topic.title if obj.topic_id else "",
+                "subtopic_title": obj.subtopic.title if obj.subtopic_id else "",
+                "is_available": not is_prev,
+                "previously_covered": is_prev,
+                "selected_in_current_plan": is_curr,
+            }
+        )
+
+    coverage = calculate_work_plan_coverage(work_plan, selected_objective_ids=current_obj_ids)
+
+    return {
+        "topics": topic_list,
+        "units": unit_list,
+        "objectives": objective_list,
+        "coverage": coverage,
+    }
 
 
 _TRANSITIONS = {
@@ -188,7 +444,17 @@ def active_assignment_for_user(*, school, user, assignment_id):
 
 
 def create_lesson_plan(
-    *, school, author, assignment, academic_year, term, scheme, lesson_date, topic, subtopic=None, origin=None
+    *,
+    school,
+    author,
+    assignment,
+    academic_year,
+    term,
+    scheme,
+    lesson_date,
+    topic,
+    subtopic=None,
+    origin=None,
 ):
     if assignment.school_id != school.id or assignment.teacher_id != author.id:
         raise PermissionDenied("You can create Lesson Plans only for your active assignments.")
@@ -275,7 +541,10 @@ def transition_lesson_plan(*, plan, actor_membership, target_status, comment="")
     }
     if target_status not in transitions.get(plan.status, set()):
         raise ValidationError("This Lesson Plan cannot make that workflow transition.")
-    author_transition = target_status in {LessonPlan.Status.SUBMITTED, LessonPlan.Status.RESUBMITTED}
+    author_transition = target_status in {
+        LessonPlan.Status.SUBMITTED,
+        LessonPlan.Status.RESUBMITTED,
+    }
     leadership = {Membership.Role.COORDINATOR, Membership.Role.HEAD, Membership.Role.DIRECTOR}
     if author_transition and plan.author_id != actor_membership.user_id:
         raise PermissionDenied("Only the author can submit or resubmit the Lesson Plan.")
@@ -290,7 +559,9 @@ def transition_lesson_plan(*, plan, actor_membership, target_status, comment="")
         }
         missing = [field.replace("_", " ") for field, value in required.items() if not value]
         if missing or not plan.objective_selections.exists():
-            detail = ", ".join(missing + ([] if plan.objective_selections.exists() else ["learning objectives"]))
+            detail = ", ".join(
+                missing + ([] if plan.objective_selections.exists() else ["learning objectives"])
+            )
             raise ValidationError(f"Complete {detail} before submitting.")
     source = plan.status
     with transaction.atomic():

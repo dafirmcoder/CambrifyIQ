@@ -155,10 +155,16 @@ class Command(BaseCommand):
             latest_scheme = None
 
         if not latest_scheme:
-            self.stdout.write(self.style.SUCCESS(f"  {year_group}: New scheme (v1). Parsed {len(parsed_topics)} topics."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"  {year_group}: New scheme (v1). Parsed {len(parsed_topics)} topics."
+                )
+            )
             for t in parsed_topics:
                 subtopics_count = len(set(lo["subtopic"] for lo in t["los"] if lo["subtopic"]))
-                self.stdout.write(f"    - {t['title']} ({len(t['los'])} LOs, {subtopics_count} subtopics)")
+                self.stdout.write(
+                    f"    - {t['title']} ({len(t['los'])} LOs, {subtopics_count} subtopics)"
+                )
             if not dry_run:
                 self.create_scheme_version(
                     framework, subject_code, subject_name, year_group, parsed_topics, 1
@@ -242,43 +248,41 @@ class Command(BaseCommand):
         topic_seq = 1
         seen_codes = set()
         for t_data in parsed_topics:
-            topic = Topic.objects.create(
-                scheme=scheme,
-                title=t_data["title"],
-                sequence=topic_seq
-            )
+            topic = Topic.objects.create(scheme=scheme, title=t_data["title"], sequence=topic_seq)
             topic_seq += 1
 
             subtopics_cache = {}
             subtopic_seq = 1
-            
+
             lo_seq = 1
             for lo_data in t_data["los"]:
                 if lo_data["code"] in seen_codes:
-                    self.stdout.write(self.style.WARNING(f"    Skipping duplicate code in {scheme.year_group}: {lo_data['code']}"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"    Skipping duplicate code in {scheme.year_group}: {lo_data['code']}"
+                        )
+                    )
                     continue
                 seen_codes.add(lo_data["code"])
-                
+
                 st_title = lo_data["subtopic"]
                 st_obj = None
                 if st_title:
                     if st_title not in subtopics_cache:
                         st_obj = Subtopic.objects.create(
-                            topic=topic,
-                            title=st_title,
-                            sequence=subtopic_seq
+                            topic=topic, title=st_title, sequence=subtopic_seq
                         )
                         subtopics_cache[st_title] = st_obj
                         subtopic_seq += 1
                     else:
                         st_obj = subtopics_cache[st_title]
-                
+
                 LearningObjective.objects.create(
                     scheme=scheme,
                     topic=topic,
                     subtopic=st_obj,
                     code=lo_data["code"],
                     text=lo_data["text"],
-                    sequence=lo_seq
+                    sequence=lo_seq,
                 )
                 lo_seq += 1

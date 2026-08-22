@@ -8,7 +8,7 @@ from apps.schools.models import School
 
 @receiver(post_save, sender=School)
 def seed_templates_for_new_school(sender, instance, created, **kwargs):
-    if not created:
+    if not created or kwargs.get("raw", False):
         return
 
     # Semester Work Plan Template

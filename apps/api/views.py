@@ -15,6 +15,7 @@ from apps.curriculum.models import SchemeOfWork
 from apps.planning.models import WorkPlan
 from apps.planning.services import (
     active_assignment_for_user,
+    calculate_work_plan_coverage,
     create_work_plan,
     save_work_plan,
     transition_work_plan,
@@ -116,8 +117,8 @@ class MyAssignmentsAPIView(APIView):
 
 
 def work_plan_payload(plan):
-    weeks = plan.weeks.select_related("topic", "calendar_week").prefetch_related(
-        "objective_selections__objective"
+    weeks = plan.weeks.select_related("topic", "subtopic", "calendar_week").prefetch_related(
+        "objective_selections__objective__topic", "objective_selections__objective__subtopic"
     )
     return {
         "id": str(plan.pk),
@@ -138,9 +139,22 @@ def work_plan_payload(plan):
                 "week_label": week.week_label,
                 "event_label": week.event_label,
                 "is_instructional": week.is_instructional,
+                "lessons_per_week": week.lessons_per_week,
                 "topic": (
-                    {"id": str(week.topic_id), "code": week.topic.code, "title": week.topic.title}
+                    {
+                        "id": str(week.topic_id),
+                        "code": getattr(week.topic, "code", ""),
+                        "title": week.topic.title,
+                    }
                     if week.topic_id
+                    else None
+                ),
+                "subtopic": (
+                    {
+                        "id": str(week.subtopic_id),
+                        "title": week.subtopic.title,
+                    }
+                    if week.subtopic_id
                     else None
                 ),
                 "objectives": [
@@ -148,6 +162,18 @@ def work_plan_payload(plan):
                         "id": str(item.objective_id),
                         "code": item.code_snapshot,
                         "text": item.text_snapshot,
+                        "topic_id": str(item.objective.topic_id)
+                        if item.objective.topic_id
+                        else None,
+                        "subtopic_id": (
+                            str(item.objective.subtopic_id) if item.objective.subtopic_id else None
+                        ),
+                        "topic_title": item.objective.topic.title
+                        if item.objective.topic_id
+                        else "",
+                        "subtopic_title": (
+                            item.objective.subtopic.title if item.objective.subtopic_id else ""
+                        ),
                     }
                     for item in week.objective_selections.all()
                 ],
@@ -155,6 +181,7 @@ def work_plan_payload(plan):
             }
             for week in weeks
         ],
+        "coverage": calculate_work_plan_coverage(plan),
     }
 
 
@@ -170,7 +197,9 @@ class WorkPlanListCreateAPIView(APIView):
     def get(self, request):
         if not getattr(request, "school", None):
             return Response({"results": []})
-        return Response({"results": [work_plan_payload(item) for item in self._plans_for_request(request)]})
+        return Response(
+            {"results": [work_plan_payload(item) for item in self._plans_for_request(request)]}
+        )
 
     def post(self, request):
         if not getattr(request, "school", None):

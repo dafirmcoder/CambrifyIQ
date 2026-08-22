@@ -10,7 +10,7 @@
     </div>
   </header>
 
-  <div class="dashboard-grid" style="grid-template-columns: minmax(0,2fr) minmax(280px,.8fr); align-items: start;">
+  <div class="dashboard-grid" style="grid-template-columns: minmax(0,2fr) minmax(320px,1fr); align-items: start;">
 
     {# Existing plans table #}
     <section class="panel">
@@ -22,8 +22,8 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Subject</th>
-              <th>Class</th>
+              <th>Subject & Class</th>
+              <th>Year Group</th>
               <th>Term</th>
               <th>Status</th>
               <th>Actions</th>
@@ -32,8 +32,11 @@
           <tbody>
             {% for plan in plans %}
             <tr>
-              <td><strong>{{ plan.assignment.subject.name }}</strong></td>
-              <td>{{ plan.assignment.school_class.name }}</td>
+              <td>
+                <strong>{{ plan.assignment.subject.name }}</strong>
+                <small style="display:block; color:var(--ink-soft);">{{ plan.assignment.school_class.name }}</small>
+              </td>
+              <td>{{ plan.assignment.school_class.year_group|default:"—" }}</td>
               <td>{{ plan.term.name }}</td>
               <td>
                 <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
@@ -59,25 +62,144 @@
     {# Creation form #}
     <div class="form-panel">
       <h2>New Work Plan</h2>
-      <p style="color:var(--ink-soft); font-size:14px; margin-bottom:22px;">Select your assignment, term and curriculum scheme to get started.</p>
+      <p style="color:var(--ink-soft); font-size:13.5px; margin-bottom:20px;">Select your assigned class/subject, term and curriculum scheme.</p>
       {% if form.non_field_errors %}
       <div class="form-errors">
         <ul>{% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}</ul>
       </div>
       {% endif %}
-      <form method="post" class="form-stack">
+      <form method="post" class="form-stack" id="work-plan-create-form">
         {% csrf_token %}
-        {% for field in form %}
         <p>
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+          <label for="{{ form.assignment.id_for_label }}">Assigned class / subject</label>
+          {{ form.assignment }}
+          {% if form.assignment.errors %}<ul class="errorlist">{% for e in form.assignment.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          <span class="helptext">Only your active assignments at this school are listed.</span>
         </p>
-        {% endfor %}
-        <button class="button button--primary" type="submit" style="width:100%; margin-top:8px;">Create draft</button>
+
+        <p>
+          <label for="{{ form.academic_year.id_for_label }}">Academic year</label>
+          {{ form.academic_year }}
+          {% if form.academic_year.errors %}<ul class="errorlist">{% for e in form.academic_year.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </p>
+
+        <p>
+          <label for="{{ form.term.id_for_label }}">Term</label>
+          {{ form.term }}
+          {% if form.term.errors %}<ul class="errorlist">{% for e in form.term.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </p>
+
+        <p>
+          <label for="{{ form.scheme.id_for_label }}">Curriculum scheme</label>
+          {{ form.scheme }}
+          {% if form.scheme.errors %}<ul class="errorlist">{% for e in form.scheme.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          <span id="scheme-helper" class="helptext">Must match the assignment's subject and year group.</span>
+        </p>
+
+        <div id="no-scheme-warning" style="display:none; padding:10px 12px; margin-bottom:14px; background:var(--warn-soft); color:var(--warn); border-radius:var(--r-sm); font-size:12.5px; font-weight:600;">
+          ⚠️ No compatible active curriculum scheme found for this assignment. Please check with an administrator.
+        </div>
+
+        <button class="button button--primary" id="btn-create-draft" type="submit" style="width:100%; margin-top:8px;">Create draft</button>
       </form>
     </div>
   </div>
 </div>
+
+{{ assignment_meta|json_script:"assignment-data" }}
+{{ scheme_meta|json_script:"scheme-data" }}
+{{ term_meta|json_script:"term-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const assignmentData = JSON.parse(document.getElementById("assignment-data")?.textContent || "[]");
+  const schemeData = JSON.parse(document.getElementById("scheme-data")?.textContent || "[]");
+  const termData = JSON.parse(document.getElementById("term-data")?.textContent || "[]");
+
+  const assignmentSelect = document.getElementById("id_assignment");
+  const yearSelect = document.getElementById("id_academic_year");
+  const termSelect = document.getElementById("id_term");
+  const schemeSelect = document.getElementById("id_scheme");
+  const warnBox = document.getElementById("no-scheme-warning");
+  const submitBtn = document.getElementById("btn-create-draft");
+
+  function filterSchemes() {
+    if (!assignmentSelect || !schemeSelect) return;
+    const selectedAssId = assignmentSelect.value;
+    const assignment = assignmentData.find(a => a.id === selectedAssId);
+
+    const currentSchemeVal = schemeSelect.value;
+    schemeSelect.innerHTML = '<option value="">---------</option>';
+
+    if (!assignment) {
+      schemeData.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.title;
+        schemeSelect.appendChild(opt);
+      });
+      warnBox.style.display = "none";
+      submitBtn.disabled = false;
+      return;
+    }
+
+    const matched = schemeData.filter(s => {
+      const subMatch = (s.subject_code === assignment.subject_code);
+      const ygMatch = !assignment.year_group || (s.year_group === assignment.year_group);
+      return subMatch && ygMatch;
+    });
+
+    if (matched.length === 0) {
+      warnBox.style.display = "block";
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No matching scheme available";
+      opt.disabled = true;
+      schemeSelect.appendChild(opt);
+    } else {
+      warnBox.style.display = "none";
+      matched.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.title;
+        if (s.id === currentSchemeVal || matched.length === 1) {
+          opt.selected = true;
+        }
+        schemeSelect.appendChild(opt);
+      });
+    }
+  }
+
+  function filterTerms() {
+    if (!yearSelect || !termSelect) return;
+    const yearId = yearSelect.value;
+    const currentTermVal = termSelect.value;
+
+    const matchedTerms = yearId ? termData.filter(t => t.academic_year_id === yearId) : termData;
+    termSelect.innerHTML = '<option value="">---------</option>';
+
+    matchedTerms.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      if (t.id === currentTermVal) {
+        opt.selected = true;
+      }
+      termSelect.appendChild(opt);
+    });
+  }
+
+  if (assignmentSelect) {
+    assignmentSelect.addEventListener("change", filterSchemes);
+  }
+  if (yearSelect) {
+    yearSelect.addEventListener("change", filterTerms);
+  }
+
+  // Initial run if already selected (e.g. form resubmission)
+  if (assignmentSelect && assignmentSelect.value) {
+    filterSchemes();
+  }
+});
+</script>
 {% endblock %}

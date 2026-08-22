@@ -34,7 +34,7 @@ exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "DJ", "UP"]
-ignore = ["DJ001", "DJ012"]
+ignore = ["DJ001", "DJ008", "DJ012", "E501"]
 
 [tool.coverage.run]
 source = ["apps"]

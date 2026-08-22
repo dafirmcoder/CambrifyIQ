@@ -55,7 +55,9 @@ class TemplateVersion(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="template_versions")
-    template = models.ForeignKey(PlanningTemplate, on_delete=models.CASCADE, related_name="versions")
+    template = models.ForeignKey(
+        PlanningTemplate, on_delete=models.CASCADE, related_name="versions"
+    )
     version = models.PositiveIntegerField()
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
     source_asset = models.FileField(upload_to="planning-template-masters/", blank=True)
@@ -148,25 +150,38 @@ class TemplateField(TimeStampedModel):
     class Meta:
         ordering = ("template_version", "sequence")
         constraints = [
-            models.UniqueConstraint(fields=("template_version", "field_id"), name="unique_version_field_id"),
-            models.UniqueConstraint(fields=("template_version", "sequence"), name="unique_version_field_sequence"),
-            models.CheckConstraint(condition=Q(width__isnull=True) | Q(width__gt=0), name="field_width_positive"),
-            models.CheckConstraint(condition=Q(height__isnull=True) | Q(height__gt=0), name="field_height_positive"),
+            models.UniqueConstraint(
+                fields=("template_version", "field_id"), name="unique_version_field_id"
+            ),
+            models.UniqueConstraint(
+                fields=("template_version", "sequence"), name="unique_version_field_sequence"
+            ),
+            models.CheckConstraint(
+                condition=Q(width__isnull=True) | Q(width__gt=0), name="field_width_positive"
+            ),
+            models.CheckConstraint(
+                condition=Q(height__isnull=True) | Q(height__gt=0), name="field_height_positive"
+            ),
         ]
 
     def clean(self):
         if self.template_version_id and self.school_id != self.template_version.school_id:
-            raise ValidationError({"template_version": "The version must belong to the same school."})
+            raise ValidationError(
+                {"template_version": "The version must belong to the same school."}
+            )
         if self.template_version_id and self.template_version.is_locked:
             raise ValidationError("Fields of a published or retired version are immutable.")
         coordinates = (self.x, self.y, self.width, self.height)
-        if any(value is not None for value in coordinates) and any(value is None for value in coordinates):
+        if any(value is not None for value in coordinates) and any(
+            value is None for value in coordinates
+        ):
             raise ValidationError("PDF field placement requires x, y, width and height.")
 
     def save(self, *args, **kwargs):
-        if not self._state.adding and TemplateField.all_objects.get(
-            pk=self.pk
-        ).template_version.is_locked:
+        if (
+            not self._state.adding
+            and TemplateField.all_objects.get(pk=self.pk).template_version.is_locked
+        ):
             raise ValidationError("Fields of a published or retired version are immutable.")
         self.full_clean()
         super().save(*args, **kwargs)
@@ -182,7 +197,9 @@ class TemplateField(TimeStampedModel):
 
 class TemplateFieldOption(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="template_field_options")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="template_field_options"
+    )
     field = models.ForeignKey(TemplateField, on_delete=models.CASCADE, related_name="options")
     value = models.CharField(max_length=120)
     label = models.CharField(max_length=160)
@@ -196,7 +213,9 @@ class TemplateFieldOption(TimeStampedModel):
         ordering = ("field", "sequence")
         constraints = [
             models.UniqueConstraint(fields=("field", "value"), name="unique_field_option_value"),
-            models.UniqueConstraint(fields=("field", "sequence"), name="unique_field_option_sequence"),
+            models.UniqueConstraint(
+                fields=("field", "sequence"), name="unique_field_option_sequence"
+            ),
         ]
 
     def clean(self):
@@ -206,9 +225,10 @@ class TemplateFieldOption(TimeStampedModel):
             raise ValidationError("Options of a published or retired version are immutable.")
 
     def save(self, *args, **kwargs):
-        if not self._state.adding and TemplateFieldOption.all_objects.get(
-            pk=self.pk
-        ).field.template_version.is_locked:
+        if (
+            not self._state.adding
+            and TemplateFieldOption.all_objects.get(pk=self.pk).field.template_version.is_locked
+        ):
             raise ValidationError("Options of a published or retired version are immutable.")
         self.full_clean()
         super().save(*args, **kwargs)
@@ -237,13 +257,17 @@ class WorkPlan(TimeStampedModel):
     assignment = models.ForeignKey(
         TeacherAssignment, on_delete=models.PROTECT, related_name="work_plans"
     )
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.PROTECT, related_name="work_plans")
+    academic_year = models.ForeignKey(
+        AcademicYear, on_delete=models.PROTECT, related_name="work_plans"
+    )
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="work_plans")
     scheme = models.ForeignKey(SchemeOfWork, on_delete=models.PROTECT, related_name="work_plans")
     template_version = models.ForeignKey(
         TemplateVersion, on_delete=models.PROTECT, related_name="work_plans"
     )
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="work_plans")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="work_plans"
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     revision = models.PositiveIntegerField(default=1)
     revision_token = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -278,11 +302,18 @@ class WorkPlan(TimeStampedModel):
             self.template_version.school_id,
         }
         if school_ids != {self.school_id}:
-            raise ValidationError("Assignment, calendar and template must belong to the plan school.")
+            raise ValidationError(
+                "Assignment, calendar and template must belong to the plan school."
+            )
         if self.term.academic_year_id != self.academic_year_id:
             raise ValidationError({"term": "The term must belong to the selected academic year."})
-        if self.template_version.template.template_type != PlanningTemplate.TemplateType.SEMESTER_WORK_PLAN:
-            raise ValidationError({"template_version": "A Work Plan needs a Semester Work Plan template."})
+        if (
+            self.template_version.template.template_type
+            != PlanningTemplate.TemplateType.SEMESTER_WORK_PLAN
+        ):
+            raise ValidationError(
+                {"template_version": "A Work Plan needs a Semester Work Plan template."}
+            )
         subject_code = self.assignment.subject.cambridge_code or self.assignment.subject.code
         if self.scheme.subject_code != subject_code:
             raise ValidationError({"scheme": "The scheme must match the assignment subject."})
@@ -314,6 +345,10 @@ class WorkPlanWeek(TimeStampedModel):
     topic = models.ForeignKey(
         Topic, null=True, blank=True, on_delete=models.PROTECT, related_name="work_plan_weeks"
     )
+    subtopic = models.ForeignKey(
+        Subtopic, null=True, blank=True, on_delete=models.PROTECT, related_name="work_plan_weeks"
+    )
+    lessons_per_week = models.PositiveSmallIntegerField(default=1)
     remarks = models.TextField(blank=True)
 
     objects = SchoolScopedManager()
@@ -329,14 +364,42 @@ class WorkPlanWeek(TimeStampedModel):
         ]
 
     def clean(self):
-        if self.school_id != self.work_plan.school_id or self.school_id != self.calendar_week.school_id:
+        if (
+            self.school_id != self.work_plan.school_id
+            or self.school_id != self.calendar_week.school_id
+        ):
             raise ValidationError("The plan week, calendar week and school must match.")
         if self.calendar_week.term_id != self.work_plan.term_id:
-            raise ValidationError({"calendar_week": "The calendar week must belong to the plan term."})
+            raise ValidationError(
+                {"calendar_week": "The calendar week must belong to the plan term."}
+            )
         if self.topic_id and self.topic.scheme_id != self.work_plan.scheme_id:
             raise ValidationError({"topic": "The topic must belong to the plan scheme."})
-        if not self.is_instructional and self.topic_id:
-            raise ValidationError({"topic": "Special-event weeks cannot have a curriculum topic."})
+        if self.subtopic_id:
+            if not self.topic_id:
+                raise ValidationError({"subtopic": "A Unit requires a primary topic."})
+            if self.subtopic.topic_id != self.topic_id:
+                raise ValidationError({"subtopic": "The Unit must belong to the selected topic."})
+            if self.subtopic.topic.scheme_id != self.work_plan.scheme_id:
+                raise ValidationError({"subtopic": "The Unit must belong to the plan scheme."})
+        if not self.is_instructional:
+            if self.topic_id:
+                raise ValidationError(
+                    {"topic": "Special-event weeks cannot have a curriculum topic."}
+                )
+            if self.subtopic_id:
+                raise ValidationError(
+                    {"subtopic": "Special-event weeks cannot have a curriculum unit."}
+                )
+            if self.lessons_per_week != 0:
+                raise ValidationError(
+                    {"lessons_per_week": "Special-event weeks must have 0 lessons."}
+                )
+        else:
+            if self.lessons_per_week < 1:
+                raise ValidationError(
+                    {"lessons_per_week": "Instructional weeks must have at least 1 lesson."}
+                )
 
     def __str__(self):
         return self.week_label
@@ -346,7 +409,9 @@ class WorkPlanWeekObjective(TimeStampedModel):
     """Selected LOs with a label snapshot for reproducible approved plans."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="work_plan_objectives")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="work_plan_objectives"
+    )
     work_plan_week = models.ForeignKey(
         WorkPlanWeek, on_delete=models.CASCADE, related_name="objective_selections"
     )
@@ -373,8 +438,6 @@ class WorkPlanWeekObjective(TimeStampedModel):
             raise ValidationError("The objective selection must belong to the plan school.")
         if self.objective.scheme_id != week.work_plan.scheme_id:
             raise ValidationError({"objective": "The objective must belong to the plan scheme."})
-        if week.topic_id and self.objective.topic_id and self.objective.topic_id != week.topic_id:
-            raise ValidationError({"objective": "The objective must match the selected topic."})
         if not week.is_instructional:
             raise ValidationError("Special-event weeks cannot have learning objectives.")
 
@@ -432,7 +495,9 @@ class LessonPlan(TimeStampedModel):
     assignment = models.ForeignKey(
         TeacherAssignment, on_delete=models.PROTECT, related_name="lesson_plans"
     )
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.PROTECT, related_name="lesson_plans")
+    academic_year = models.ForeignKey(
+        AcademicYear, on_delete=models.PROTECT, related_name="lesson_plans"
+    )
     term = models.ForeignKey(Term, on_delete=models.PROTECT, related_name="lesson_plans")
     scheme = models.ForeignKey(SchemeOfWork, on_delete=models.PROTECT, related_name="lesson_plans")
     template_version = models.ForeignKey(
@@ -445,7 +510,9 @@ class LessonPlan(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="lesson_plans",
     )
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lesson_plans")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lesson_plans"
+    )
     lesson_date = models.DateField()
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="lesson_plans")
     subtopic = models.ForeignKey(
@@ -486,29 +553,48 @@ class LessonPlan(TimeStampedModel):
             self.template_version.school_id,
         }
         if school_ids != {self.school_id}:
-            raise ValidationError("Assignment, calendar and template must belong to the Lesson Plan school.")
+            raise ValidationError(
+                "Assignment, calendar and template must belong to the Lesson Plan school."
+            )
         if self.term.academic_year_id != self.academic_year_id:
             raise ValidationError({"term": "The term must belong to the selected academic year."})
         if not self.term.starts_on <= self.lesson_date <= self.term.ends_on:
-            raise ValidationError({"lesson_date": "The lesson date must fall within the selected term."})
-        if self.template_version.template.template_type != PlanningTemplate.TemplateType.LESSON_PLAN:
-            raise ValidationError({"template_version": "A Lesson Plan needs a Lesson Plan template."})
+            raise ValidationError(
+                {"lesson_date": "The lesson date must fall within the selected term."}
+            )
+        if (
+            self.template_version.template.template_type
+            != PlanningTemplate.TemplateType.LESSON_PLAN
+        ):
+            raise ValidationError(
+                {"template_version": "A Lesson Plan needs a Lesson Plan template."}
+            )
         if self.author_id != self.assignment.teacher_id:
-            raise ValidationError({"author": "The assignment teacher must author this Lesson Plan."})
+            raise ValidationError(
+                {"author": "The assignment teacher must author this Lesson Plan."}
+            )
         if self.topic.scheme_id != self.scheme_id:
             raise ValidationError({"topic": "The topic must belong to the selected scheme."})
         if self.subtopic_id and self.subtopic.topic_id != self.topic_id:
             raise ValidationError({"subtopic": "The subtopic must belong to the selected topic."})
         if self.boys_attendance > self.assignment.school_class.boys_count:
-            raise ValidationError({"boys_attendance": "Attendance cannot exceed the class boys roster."})
+            raise ValidationError(
+                {"boys_attendance": "Attendance cannot exceed the class boys roster."}
+            )
         if self.girls_attendance > self.assignment.school_class.girls_count:
-            raise ValidationError({"girls_attendance": "Attendance cannot exceed the class girls roster."})
+            raise ValidationError(
+                {"girls_attendance": "Attendance cannot exceed the class girls roster."}
+            )
         if self.originating_work_plan_week_id:
             origin = self.originating_work_plan_week
             if origin.work_plan.assignment_id != self.assignment_id:
-                raise ValidationError({"originating_work_plan_week": "The Work Plan row must use this assignment."})
+                raise ValidationError(
+                    {"originating_work_plan_week": "The Work Plan row must use this assignment."}
+                )
             if origin.topic_id and origin.topic_id != self.topic_id:
-                raise ValidationError({"topic": "The topic must match the originating Work Plan row."})
+                raise ValidationError(
+                    {"topic": "The topic must match the originating Work Plan row."}
+                )
 
     def __str__(self):
         return f"{self.assignment} · {self.lesson_date:%d %b %Y}"
@@ -516,8 +602,12 @@ class LessonPlan(TimeStampedModel):
 
 class LessonPlanObjective(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="lesson_plan_objectives")
-    lesson_plan = models.ForeignKey(LessonPlan, on_delete=models.CASCADE, related_name="objective_selections")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="lesson_plan_objectives"
+    )
+    lesson_plan = models.ForeignKey(
+        LessonPlan, on_delete=models.CASCADE, related_name="objective_selections"
+    )
     objective = models.ForeignKey(
         LearningObjective, on_delete=models.PROTECT, related_name="lesson_plan_selections"
     )
@@ -539,7 +629,9 @@ class LessonPlanObjective(TimeStampedModel):
         if self.school_id != self.lesson_plan.school_id:
             raise ValidationError("The objective must belong to the Lesson Plan school.")
         if self.objective.scheme_id != self.lesson_plan.scheme_id:
-            raise ValidationError({"objective": "The objective must belong to the selected scheme."})
+            raise ValidationError(
+                {"objective": "The objective must belong to the selected scheme."}
+            )
         if self.objective.topic_id and self.objective.topic_id != self.lesson_plan.topic_id:
             raise ValidationError({"objective": "The objective must match the selected topic."})
 

@@ -626,12 +626,223 @@ details.user-menu > summary::-webkit-details-marker { display: none; }
   .cta .button { margin-left: 0; }
   .marketing-nav__links > a:not(.button) { display: none; }
 }
-@media (max-width: 520px) {
-  .stats-grid, .feature-grid { grid-template-columns: 1fr; }
-  .mock-grid { grid-template-columns: 1fr; }
-  .auth-main { padding: 26px 18px; }
-  .center-card { padding: 22px; }
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORK PLAN EDITOR WORKSPACE
+   ═══════════════════════════════════════════════════════════════════════════ */
+.plan-workspace-grid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
 }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+
+.curriculum-library-panel {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
 }
+
+.curriculum-library-panel .panel__body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.objective-search-input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+}
+
+.objective-list-box {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.objective-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+
+.objective-item-row:hover {
+  background: var(--accent-blue-soft);
+  border-color: var(--accent-blue);
+}
+
+.objective-item-row--in-plan {
+  background: var(--accent-purple-soft);
+  border-color: var(--accent-purple);
+  border-left: 3.5px solid var(--accent-purple);
+}
+
+.objective-item-row--in-plan:hover {
+  background: var(--accent-purple-soft);
+  border-color: var(--accent-purple);
+}
+
+.obj-planned-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--accent-purple);
+  border: 1px solid var(--accent-purple);
+}
+
+.objective-item-row input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.week-card {
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  margin-bottom: 18px;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.week-card--target {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue-glow);
+}
+
+.week-card__header {
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.week-card__body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.week-objectives-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 48px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px;
+  background: var(--surface-2);
+}
+
+.selected-objective-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+
+.selected-objective-card .remove-btn {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.selected-objective-card .remove-btn:hover {
+  background: var(--accent-red-soft);
+}
+
+.cross-unit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: var(--accent-orange-soft);
+  color: var(--accent-orange);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+@media (max-width: 1080px) {
+  .plan-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+  .curriculum-library-panel {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* Coverage Panel & Progress Bar */
+.panel--coverage {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-left: 4px solid var(--accent-blue);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.coverage-progress-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.coverage-progress-prev {
+  height: 100%;
+  background: var(--accent-green);
+  transition: width 0.35s ease;
+}
+
+.coverage-progress-curr {
+  height: 100%;
+  background: var(--accent-blue);
+  transition: width 0.35s ease;
+}
+
+
