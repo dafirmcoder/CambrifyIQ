@@ -11,7 +11,7 @@
         <p>{{ plan.term.name }} · {{ plan.scheme.title }} · Revision {{ plan.revision }}</p>
       </div>
       <div class="button-row">
-        <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}" target="_blank">Preview PDF</a>
+        <button type="button" class="button button--secondary btn-preview-pdf" data-pdf-url="{% url 'planning:work_plan_pdf' plan.pk %}" data-title="Review Work Plan — {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} ({{ plan.term.name }})">Preview PDF</button>
         <a class="button button--secondary" href="{% url 'planning:review_queue' %}">Back to Queue</a>
       </div>
     </header>
@@ -48,19 +48,59 @@
     </div>
     {% endif %}
 
+    {# Weekly Reflections Progress for Approved Plans #}
+    {% if plan.status == "approved" or reflection_stats.remarked_past_weeks_count > 0 or reflection_stats.met_objectives_count > 0 %}
+    <div class="panel panel--reflection" style="margin-bottom:20px; padding:16px 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+        <strong style="font-size:14px; color:var(--ink);">📅 Weekly Reflections & Verified Progress</strong>
+        <span class="chip chip--approved">{{ reflection_stats.remarks_progress_percent }}% Reflected</span>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:var(--ink-soft);">
+          <span>Past Weeks Remarked: <strong>{{ reflection_stats.remarked_past_weeks_count }} of {{ reflection_stats.past_weeks_count }}</strong></span>
+          <strong>{{ reflection_stats.remarks_progress_percent }}%</strong>
+        </div>
+        <div class="progress-bar-track">
+          <div style="width:{{ reflection_stats.remarks_progress_percent }}%; height:100%; background:var(--accent-green);"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:var(--ink-soft);">
+          <span>Objectives Met: <strong>{{ reflection_stats.met_objectives_count }} of {{ reflection_stats.total_planned_objectives }}</strong></span>
+          <strong>{{ reflection_stats.met_coverage_percent }}%</strong>
+        </div>
+        <div class="progress-bar-track">
+          <div style="width:{{ reflection_stats.met_coverage_percent }}%; height:100%; background:var(--accent-blue);"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <section class="panel">
       <header class="panel__header"><h2>Calendar Weeks Schedule</h2></header>
       <div class="panel__body" style="display:flex; flex-direction:column; gap:16px;">
       {% for week in weeks %}
         <article class="week-card {% if not week.is_instructional %}week-row--special{% endif %}" style="margin:0;">
           <header class="week-card__header">
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <span class="chip {% if week.is_instructional %}chip--approved{% else %}chip--submitted{% endif %}">
                 Week {{ week.sequence }}
               </span>
               <strong>{{ week.week_label }}</strong>
               {% if week.month_label %}
                 <span style="color:var(--ink-soft); font-size:13px;">({{ week.month_label }})</span>
+              {% endif %}
+
+              {% if plan.status == "approved" %}
+                {% if week.is_past_week %}
+                  <span class="chip chip--approved" style="font-size:11px; padding:2px 8px;">✓ Past Week</span>
+                {% elif week.is_current_week %}
+                  <span class="chip chip--submitted" style="font-size:11px; padding:2px 8px;">🟢 Current Week</span>
+                {% else %}
+                  <span class="chip chip--draft" style="font-size:11px; padding:2px 8px; opacity:0.8;">🔒 Upcoming Week</span>
+                {% endif %}
               {% endif %}
             </div>
             <div>
@@ -88,13 +128,20 @@
                 <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:6px;">Learning Objectives ({{ week.selected_objectives_details|length }})</span>
                 <div style="display:flex; flex-direction:column; gap:6px;">
                   {% for item in week.selected_objectives_details %}
-                    <div style="padding:8px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); font-size:13px;">
-                      <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
-                      <div style="margin-top:2px; font-size:11.5px; color:var(--ink-soft);">
-                        <span>Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}</span>
-                        {% if week.topic_id and item.topic_id != week.topic_id|stringformat:"s" or week.subtopic_id and item.subtopic_id != week.subtopic_id|stringformat:"s" %}
-                          <span class="cross-unit-badge">Cross-unit</span>
-                        {% endif %}
+                    <div style="padding:8px 12px; background:var(--surface-2); border:1px solid {% if item.is_met %}var(--accent-green){% else %}var(--line){% endif %}; border-radius:var(--r-sm); font-size:13px; display:flex; align-items:flex-start; gap:10px;">
+                      {% if item.is_met %}
+                        <span class="chip chip--approved" style="font-size:10.5px; padding:2px 6px; flex-shrink:0;">✓ Met</span>
+                      {% else %}
+                        <span class="chip chip--draft" style="font-size:10.5px; padding:2px 6px; flex-shrink:0; opacity:0.8;">Planned</span>
+                      {% endif %}
+                      <div style="flex:1;">
+                        <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
+                        <div style="margin-top:2px; font-size:11.5px; color:var(--ink-soft);">
+                          <span>Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}</span>
+                          {% if week.topic_id and item.topic_id != week.topic_id|stringformat:"s" or week.subtopic_id and item.subtopic_id != week.subtopic_id|stringformat:"s" %}
+                            <span class="cross-unit-badge">Cross-unit</span>
+                          {% endif %}
+                        </div>
                       </div>
                     </div>
                   {% empty %}
@@ -109,9 +156,13 @@
             {% endif %}
 
             {% if week.remarks %}
-              <div style="margin-top:4px;">
-                <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block;">Remarks</span>
-                <p style="font-size:13.5px; margin:2px 0 0;">{{ week.remarks }}</p>
+              <div style="margin-top:8px; padding:10px 14px; background:var(--surface-3); border-left:3px solid var(--accent-blue); border-radius:var(--r-sm);">
+                <span style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block;">Teacher Weekly Remarks & Reflection</span>
+                <p style="font-size:13.5px; margin:2px 0 0; color:var(--ink);">{{ week.remarks }}</p>
+              </div>
+            {% else %}
+              <div style="margin-top:8px; font-size:12.5px; color:var(--ink-soft); font-style:italic;">
+                No weekly remarks recorded for this week yet.
               </div>
             {% endif %}
           </div>

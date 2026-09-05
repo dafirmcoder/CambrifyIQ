@@ -9,7 +9,7 @@
       <h1>Good day, {{ user.get_short_name }}</h1>
       <p>Here is what is happening at {{ active_school.name }}.</p>
     </div>
-    {% if is_teacher %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:work_plan_list' %}">+ New Work Plan</a><a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">+ Lesson Plan</a></div>{% elif is_leader %}<div class="button-row"><a class="button button--primary" href="{% url 'planning:review_queue' %}">Review Queue</a><a class="button button--secondary" href="{% url 'schools:invite' %}">Invite member</a></div>{% endif %}
+    {% if is_teacher %}<div class="button-row" style="gap:10px;"><a class="button button--gradient" href="{% url 'planning:work_plan_list' %}">+ New Work Plan</a><a class="button button--subtle" href="{% url 'planning:lesson_plan_list' %}">+ Lesson Plan</a></div>{% elif is_leader %}<div class="button-row" style="gap:10px;"><a class="button button--gradient" href="{% url 'planning:review_queue' %}">Review Queue</a><a class="button button--subtle" href="{% url 'schools:invite' %}">Invite member</a></div>{% endif %}
   </header>
   <section class="stats-grid" aria-label="School summary">
     {% if is_teacher %}
@@ -23,10 +23,19 @@
       <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
         <article class="stat-card stat-card--orange">
           <div class="stat-card__accent"></div>
+          <div class="stat-card__icon">⏳</div>
+          <div class="stat-card__label">Under Review</div>
+          <div class="stat-card__value">{{ stats.under_review_work_plans_count }}</div>
+          <div class="stat-card__hint">Awaiting leadership feedback</div>
+        </article>
+      </a>
+      <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
+        <article class="stat-card stat-card--orange">
+          <div class="stat-card__accent"></div>
           <div class="stat-card__icon">📋</div>
           <div class="stat-card__label">Draft Plans</div>
           <div class="stat-card__value">{{ stats.draft_plans }}</div>
-          <div class="stat-card__hint">Available in planning phase</div>
+          <div class="stat-card__hint">In planning phase</div>
         </article>
       </a>
       <a href="{% url 'planning:work_plan_list' %}" style="text-decoration:none; color:inherit; display:block;">
@@ -55,6 +64,15 @@
         <div class="stat-card__value">{{ stats.team_members }}</div>
         <div class="stat-card__hint">Across four school roles</div>
       </article>
+      <a href="{% url 'planning:review_queue' %}" style="text-decoration:none; color:inherit; display:block;">
+        <article class="stat-card stat-card--orange">
+          <div class="stat-card__accent"></div>
+          <div class="stat-card__icon">⏳</div>
+          <div class="stat-card__label">Plans Under Review</div>
+          <div class="stat-card__value">{{ stats.under_review_work_plans_count }}</div>
+          <div class="stat-card__hint">Awaiting your approval</div>
+        </article>
+      </a>
       <article class="stat-card stat-card--orange">
         <div class="stat-card__accent"></div>
         <div class="stat-card__icon">📖</div>
@@ -78,8 +96,83 @@
       </article>
     {% endif %}
   </section>
+
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  {# WORK PLANS UNDER REVIEW DEDICATED PANEL                                #}
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  <section class="panel" style="margin-bottom:24px; border-radius:var(--r-lg);">
+    <header class="panel__header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:18px;">⏳</span>
+        <h2 style="font-size:16px; margin:0;">
+          {% if is_teacher %}My Work Plans Under Review{% else %}Work Plans Awaiting Review{% endif %}
+        </h2>
+      </div>
+      <span class="chip chip--saas chip--amber" style="font-size:11.5px;">
+        <span class="status-dot status-dot--amber status-dot--pulse"></span>
+        {{ under_review_work_plans|length }} Under Review
+      </span>
+    </header>
+    {% if under_review_work_plans %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Subject & Class</th>
+              {% if not is_teacher %}<th>Teacher</th>{% endif %}
+              <th>Term & Stage</th>
+              <th>Status</th>
+              <th>Submitted / Updated</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for plan in under_review_work_plans %}
+            <tr>
+              <td>
+                <strong style="color:var(--ink); font-size:14px;">{{ plan.assignment.subject.name }}</strong>
+                <small style="display:block; color:var(--ink-soft); font-size:12px;">{{ plan.assignment.school_class.name }}</small>
+              </td>
+              {% if not is_teacher %}
+              <td>
+                <strong style="font-size:13px;">{{ plan.author.full_name|default:plan.author.email }}</strong>
+              </td>
+              {% endif %}
+              <td>
+                <span>{{ plan.term.name }}</span>
+                <small style="display:block; color:var(--ink-soft); font-size:11.5px;">{{ plan.scheme.subject_code }} ({{ plan.scheme.year_group|default:"—" }})</small>
+              </td>
+              <td>
+                <span class="chip chip--saas chip--amber">
+                  <span class="status-dot status-dot--amber status-dot--pulse"></span>
+                  {{ plan.get_status_display }}
+                </span>
+              </td>
+              <td style="font-size:13px; color:var(--ink-soft);">
+                {{ plan.updated_at|date:"j M Y, H:i" }}
+              </td>
+              <td class="table-actions">
+                <a class="button button--subtle button--small" href="{% url 'planning:work_plan_detail' plan.pk %}">Open Plan</a>
+                <button type="button" class="button button--subtle button--small btn-preview-pdf" data-pdf-url="{% url 'planning:work_plan_pdf' plan.pk %}" data-title="Work Plan — {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} ({{ plan.term.name }})">📄 PDF</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:32px 16px;">
+        <div class="empty-state__icon" style="font-size:32px; margin-bottom:8px;">✓</div>
+        <h3 style="font-size:15px;">No work plans currently under review</h3>
+        <p style="color:var(--ink-soft); font-size:13px; margin:0;">
+          {% if is_teacher %}When you submit a work plan, it will appear here while pending review.{% else %}All submitted work plans have been reviewed.{% endif %}
+        </p>
+      </div>
+    {% endif %}
+  </section>
+
   <div class="dashboard-grid">
-    <section class="panel">
+    <section class="panel" style="border-radius:var(--r-lg);">
       <header class="panel__header"><h2>{% if is_teacher %}My teaching assignments{% else %}Recent planning activity{% endif %}</h2></header>
       {% if is_teacher %}
         {% if assignments %}

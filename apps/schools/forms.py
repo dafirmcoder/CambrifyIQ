@@ -18,11 +18,17 @@ WEEK_START_CHOICES = [
 
 
 class SchoolSettingsForm(forms.ModelForm):
+    logo_file = forms.ImageField(
+        required=False,
+        label="Upload School Logo",
+        help_text="Upload official school crest or logo (PNG with transparent background recommended, max 2MB).",
+    )
+
     class Meta:
         model = School
         fields = ("name", "timezone", "country", "address", "phone", "website", "logo_url")
         widgets = {"address": forms.Textarea(attrs={"rows": 3})}
-        help_texts = {"logo_url": "Use a secure, publicly accessible logo URL for now."}
+        help_texts = {"logo_url": "Or specify a direct logo URL."}
 
 
 class InvitationForm(forms.Form):

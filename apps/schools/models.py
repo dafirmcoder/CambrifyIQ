@@ -379,3 +379,87 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class TeacherTimetable(TimeStampedModel):
+    """An uploaded teacher timetable document and its structured parsing state."""
+
+    class Status(models.TextChoices):
+        PENDING_REVIEW = "pending_review", "Pending Review"
+        CONFIRMED = "confirmed", "Confirmed"
+        SUPERSEDED = "superseded", "Superseded"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="teacher_timetables"
+    )
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="timetables"
+    )
+    academic_year = models.ForeignKey(
+        AcademicYear, null=True, blank=True, on_delete=models.SET_NULL, related_name="teacher_timetables"
+    )
+    file = models.FileField(upload_to="schools/timetables/%Y/%m/")
+    file_name = models.CharField(max_length=255)
+    parsed_data = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING_REVIEW)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SchoolScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("school", "teacher", "status"))]
+
+    def __str__(self):
+        return f"{self.teacher.get_short_name()} · {self.file_name} ({self.get_status_display()})"
+
+
+class TeacherScheduleSlot(TimeStampedModel):
+    """An individual weekly teaching lesson slot (e.g. Monday 08:00–08:45, Grade 7A Computing)."""
+
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, "Monday"
+        TUESDAY = 1, "Tuesday"
+        WEDNESDAY = 2, "Wednesday"
+        THURSDAY = 3, "Thursday"
+        FRIDAY = 4, "Friday"
+        SATURDAY = 5, "Saturday"
+        SUNDAY = 6, "Sunday"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="schedule_slots"
+    )
+    timetable = models.ForeignKey(
+        TeacherTimetable, null=True, blank=True, on_delete=models.SET_NULL, related_name="slots"
+    )
+    assignment = models.ForeignKey(
+        TeacherAssignment, on_delete=models.CASCADE, related_name="schedule_slots"
+    )
+    day_of_week = models.PositiveSmallIntegerField(choices=DayOfWeek.choices)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    period_label = models.CharField(max_length=40, blank=True)
+    room = models.CharField(max_length=60, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    objects = SchoolScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("day_of_week", "start_time")
+        indexes = [
+            models.Index(fields=("school", "assignment", "day_of_week")),
+        ]
+
+    def clean(self):
+        if self.school_id != self.assignment.school_id:
+            raise ValidationError("The schedule slot and assignment must belong to the same school.")
+        if self.end_time <= self.start_time:
+            raise ValidationError({"end_time": "End time must be after start time."})
+
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} {self.start_time:%H:%M}–{self.end_time:%H:%M} ({self.assignment})"

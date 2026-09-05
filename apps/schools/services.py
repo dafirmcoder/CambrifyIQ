@@ -175,3 +175,9 @@ def update_member(*, actor_membership, membership, role, status):
         metadata={"previous": previous, "role": role, "status": status},
     )
     return membership
+
+
+from apps.schools.timetable_services import (
+    commit_teacher_timetable,
+    parse_timetable_pdf,
+)

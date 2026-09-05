@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Curriculum Objectives Explorer · {{ active_school.name }}{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-header" style="margin-bottom:24px;">
+    <div>
+      <span class="role-chip">Cambridge International Curricula</span>
+      <h1 style="font-size:24px; margin:4px 0;">Curriculum Objectives & Schemes Explorer</h1>
+      <p style="color:var(--ink-soft); font-size:14px; margin:0;">
+        Explore, filter, and search official Cambridge Primary, Lower Secondary, IGCSE, and AS/A Level syllabus topics, units, and learning objectives.
+      </p>
+    </div>
+  </header>
+
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  {# 5-TIER FILTER CONTROL BAR                                              #}
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  <div class="panel panel--blue" style="margin-bottom:24px; padding:20px 22px; border-radius:var(--r-lg);">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; align-items:end;">
+      
+      {# Tier 1: Framework #}
+      <div>
+        <label for="browser-framework" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">
+          1. Framework / Tier
+        </label>
+        <select id="browser-framework" class="field select" style="width:100%;">
+          <option value="">-- Select Framework --</option>
+          {% for fw in frameworks %}
+            <option value="{{ fw.code }}">{{ fw.name }} ({{ fw.schemes_count }} schemes)</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Tier 2: Subject & Scheme #}
+      <div>
+        <label for="browser-scheme" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">
+          2. Subject & Stage / Year
+        </label>
+        <select id="browser-scheme" class="field select" style="width:100%;" disabled>
+          <option value="">-- Choose Framework First --</option>
+        </select>
+      </div>
+
+      {# Tier 3: Topic #}
+      <div>
+        <label for="browser-topic" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">
+          3. Topic
+        </label>
+        <select id="browser-topic" class="field select" style="width:100%;" disabled>
+          <option value="">-- All Topics in Scheme --</option>
+        </select>
+      </div>
+
+      {# Tier 4: Unit / Subtopic #}
+      <div>
+        <label for="browser-subtopic" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">
+          4. Unit / Subtopic
+        </label>
+        <select id="browser-subtopic" class="field select" style="width:100%;" disabled>
+          <option value="">-- All Units --</option>
+        </select>
+      </div>
+
+      {# Tier 5: Search Query #}
+      <div>
+        <label for="browser-search" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">
+          5. Search Objectives
+        </label>
+        <input type="search" id="browser-search" class="field" placeholder="Filter by code or keyword..." style="width:100%;" disabled>
+      </div>
+
+    </div>
+  </div>
+
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  {# RESULTS & OBJECTIVES GRID                                             #}
+  {# ══════════════════════════════════════════════════════════════════════ #}
+  <section class="panel" style="border-radius:var(--r-lg);">
+    <header class="panel__header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:16px 20px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <h2 id="results-heading" style="margin:0; font-size:16px;">Learning Objectives</h2>
+        <span id="results-count-chip" class="chip chip--saas chip--indigo" style="font-size:11.5px;">0 objectives</span>
+      </div>
+      <div id="active-scheme-info" style="font-size:12.5px; color:var(--ink-soft); font-weight:600;"></div>
+    </header>
+
+    <div class="panel__body" style="padding:20px;">
+      {# Empty State Placeholder #}
+      <div id="browser-empty-state" class="empty-state" style="padding:48px 16px; text-align:center;">
+        <div class="empty-state__icon" style="font-size:40px; margin-bottom:12px;">📚</div>
+        <h3>Select a Framework & Subject</h3>
+        <p style="color:var(--ink-soft); font-size:14px; max-width:480px; margin:0 auto;">
+          Choose a Cambridge framework (Primary, Lower Secondary, IGCSE) and a subject from the controls above to explore its curriculum structure and learning objectives.
+        </p>
+      </div>
+
+      {# Loading Indicator #}
+      <div id="browser-loading" style="display:none; padding:40px; text-align:center; color:var(--ink-soft);">
+        <div style="font-size:15px; font-weight:600;">Loading curriculum data...</div>
+      </div>
+
+      {# Objectives Container #}
+      <div id="browser-objectives-grid" style="display:none; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:16px;"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const frameworkSelect = document.getElementById("browser-framework");
+  const schemeSelect = document.getElementById("browser-scheme");
+  const topicSelect = document.getElementById("browser-topic");
+  const subtopicSelect = document.getElementById("browser-subtopic");
+  const searchInput = document.getElementById("browser-search");
+
+  const resultsHeading = document.getElementById("results-heading");
+  const resultsCountChip = document.getElementById("results-count-chip");
+  const activeSchemeInfo = document.getElementById("active-scheme-info");
+  const emptyState = document.getElementById("browser-empty-state");
+  const loadingState = document.getElementById("browser-loading");
+  const gridContainer = document.getElementById("browser-objectives-grid");
+
+  let currentSchemes = [];
+  let currentTopics = [];
+  let currentSubtopics = [];
+  let allSchemeObjectives = [];
+
+  // 1. Framework Change -> Fetch Schemes
+  frameworkSelect.addEventListener("change", async function() {
+    const fwCode = this.value;
+    schemeSelect.innerHTML = '<option value="">-- Select Subject & Stage --</option>';
+    topicSelect.innerHTML = '<option value="">-- All Topics --</option>';
+    subtopicSelect.innerHTML = '<option value="">-- All Units --</option>';
+    schemeSelect.disabled = true;
+    topicSelect.disabled = true;
+    subtopicSelect.disabled = true;
+    searchInput.disabled = true;
+    searchInput.value = "";
+    resetResults();
+
+    if (!fwCode) {
+      schemeSelect.innerHTML = '<option value="">-- Choose Framework First --</option>';
+      return;
+    }
+
+    try {
+      loadingState.style.display = "block";
+      emptyState.style.display = "none";
+      const res = await fetch(`/curriculum/api/schemes/?framework=${encodeURIComponent(fwCode)}`);
+      const data = await res.json();
+      currentSchemes = data.schemes || [];
+
+      schemeSelect.innerHTML = '<option value="">-- Select Subject & Stage (' + currentSchemes.length + ' available) --</option>';
+      currentSchemes.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = `${s.subject_code} ${s.subject_name} (${s.year_group}) — ${s.los_count} LOs`;
+        schemeSelect.appendChild(opt);
+      });
+      schemeSelect.disabled = false;
+      loadingState.style.display = "none";
+      emptyState.style.display = "block";
+    } catch (err) {
+      console.error(err);
+      loadingState.style.display = "none";
+      emptyState.style.display = "block";
+    }
+  });
+
+  // 2. Scheme Change -> Fetch Topics & Objectives
+  schemeSelect.addEventListener("change", async function() {
+    const schemeId = this.value;
+    topicSelect.innerHTML = '<option value="">-- All Topics in Scheme --</option>';
+    subtopicSelect.innerHTML = '<option value="">-- All Units --</option>';
+    topicSelect.disabled = true;
+    subtopicSelect.disabled = true;
+    searchInput.disabled = true;
+    searchInput.value = "";
+
+    if (!schemeId) {
+      resetResults();
+      return;
+    }
+
+    const selectedScheme = currentSchemes.find(s => s.id === schemeId);
+    if (selectedScheme) {
+      activeSchemeInfo.textContent = `${selectedScheme.framework_name} · ${selectedScheme.subject_name} (${selectedScheme.year_group})`;
+    }
+
+    try {
+      loadingState.style.display = "block";
+      emptyState.style.display = "none";
+      gridContainer.style.display = "none";
+
+      const [topicsRes, objsRes] = await Promise.all([
+        fetch(`/curriculum/api/topics/?scheme=${encodeURIComponent(schemeId)}`),
+        fetch(`/curriculum/api/objectives/?scheme=${encodeURIComponent(schemeId)}`)
+      ]);
+
+      const topicsData = await topicsRes.json();
+      const objsData = await objsRes.json();
+
+      currentTopics = topicsData.topics || [];
+      allSchemeObjectives = objsData.objectives || [];
+
+      topicSelect.innerHTML = '<option value="">-- All Topics (' + currentTopics.length + ') --</option>';
+      currentTopics.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = `${t.title} (${t.los_count} LOs)`;
+        topicSelect.appendChild(opt);
+      });
+
+      topicSelect.disabled = false;
+      searchInput.disabled = false;
+      loadingState.style.display = "none";
+
+      renderFilteredObjectives();
+    } catch (err) {
+      console.error(err);
+      loadingState.style.display = "none";
+    }
+  });
+
+  // 3. Topic Change -> Fetch Subtopics & Filter
+  topicSelect.addEventListener("change", async function() {
+    const topicId = this.value;
+    subtopicSelect.innerHTML = '<option value="">-- All Units --</option>';
+    subtopicSelect.disabled = true;
+
+    if (topicId) {
+      try {
+        const res = await fetch(`/curriculum/api/subtopics/?topic=${encodeURIComponent(topicId)}`);
+        const data = await res.json();
+        currentSubtopics = data.subtopics || [];
+
+        if (currentSubtopics.length > 0) {
+          subtopicSelect.innerHTML = '<option value="">-- All Units in Topic (' + currentSubtopics.length + ') --</option>';
+          currentSubtopics.forEach(st => {
+            const opt = document.createElement("option");
+            opt.value = st.id;
+            opt.textContent = `${st.title} (${st.los_count} LOs)`;
+            subtopicSelect.appendChild(opt);
+          });
+          subtopicSelect.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    renderFilteredObjectives();
+  });
+
+  // 4. Subtopic Change -> Filter
+  subtopicSelect.addEventListener("change", renderFilteredObjectives);
+
+  // 5. Search Query -> Filter
+  searchInput.addEventListener("input", renderFilteredObjectives);
+
+  function renderFilteredObjectives() {
+    const selectedTopicId = topicSelect.value;
+    const selectedSubtopicId = subtopicSelect.value;
+    const q = searchInput.value.trim().toLowerCase();
+
+    let filtered = allSchemeObjectives;
+
+    if (selectedTopicId) {
+      filtered = filtered.filter(lo => lo.topic_id === selectedTopicId);
+    }
+    if (selectedSubtopicId) {
+      filtered = filtered.filter(lo => lo.subtopic_id === selectedSubtopicId);
+    }
+    if (q) {
+      filtered = filtered.filter(lo =>
+        (lo.code && lo.code.toLowerCase().includes(q)) ||
+        (lo.text && lo.text.toLowerCase().includes(q))
+      );
+    }
+
+    resultsCountChip.textContent = `${filtered.length} objective${filtered.length === 1 ? '' : 's'}`;
+
+    if (filtered.length === 0) {
+      gridContainer.style.display = "none";
+      emptyState.style.display = "block";
+      emptyState.innerHTML = `
+        <div class="empty-state__icon" style="font-size:36px; margin-bottom:8px;">🔍</div>
+        <h3>No matching learning objectives</h3>
+        <p style="color:var(--ink-soft); font-size:13.5px;">Try clearing filters or search terms.</p>
+      `;
+      return;
+    }
+
+    emptyState.style.display = "none";
+    gridContainer.style.display = "grid";
+    gridContainer.innerHTML = "";
+
+    filtered.forEach(lo => {
+      const card = document.createElement("article");
+      card.className = "week-card--timeline";
+      card.style.margin = "0";
+      card.style.padding = "16px 18px";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
+      card.style.justifyContent = "space-between";
+
+      card.innerHTML = `
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:10px;">
+            <span class="chip chip--saas chip--indigo" style="font-weight:800; font-size:12px; letter-spacing:0.5px;">
+              <span class="status-dot status-dot--indigo"></span>
+              ${lo.code}
+            </span>
+            <button type="button" class="button button--subtle button--small btn-copy-lo" data-code="${lo.code}" data-text="${lo.text.replace(/"/g, '&quot;')}" title="Copy objective to clipboard" style="padding:3px 8px; font-size:11px; height:auto; min-height:auto;">
+              📋 Copy
+            </button>
+          </div>
+          <p style="font-size:13.5px; line-height:1.5; color:var(--ink); margin:0 0 12px; font-weight:500;">${lo.text}</p>
+        </div>
+        <div style="border-top:1px solid var(--line); padding-top:10px; margin-top:6px; font-size:11.5px; color:var(--ink-soft); display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          ${lo.topic_title ? `<span class="chip chip--saas" style="font-size:11px; padding:2px 6px;"><strong>Topic:</strong> ${lo.topic_title}</span>` : ''}
+          ${lo.subtopic_title ? `<span class="chip chip--saas chip--sky" style="font-size:11px; padding:2px 6px;"><strong>Unit:</strong> ${lo.subtopic_title}</span>` : ''}
+        </div>
+      `;
+      gridContainer.appendChild(card);
+    });
+
+    // Copy to clipboard handlers
+    gridContainer.querySelectorAll(".btn-copy-lo").forEach(btn => {
+      btn.addEventListener("click", function() {
+        const textToCopy = `${this.dataset.code}: ${this.dataset.text}`;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          const originalText = this.textContent;
+          this.textContent = "✓ Copied!";
+          setTimeout(() => { this.textContent = originalText; }, 1500);
+        });
+      });
+    });
+  }
+
+  function resetResults() {
+    activeSchemeInfo.textContent = "";
+    resultsCountChip.textContent = "0 objectives";
+    gridContainer.style.display = "none";
+    emptyState.style.display = "block";
+  }
+});
+</script>
+{% endblock %}

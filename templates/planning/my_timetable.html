@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}My Weekly Timetable · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell" style="max-width:1100px; margin:0 auto;">
+  <header class="page-header" style="margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; flex-wrap:wrap; gap:12px;">
+      <div>
+        <span class="role-chip">Weekly Schedule</span>
+        <h1 style="font-size:22px; margin:4px 0;">My Teaching Timetable</h1>
+        <p style="color:var(--ink-soft); font-size:14px; margin:0;">
+          {{ total_slots }} weekly scheduled lessons across {{ assignments|length }} teaching assignments.
+        </p>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a href="{% url 'planning:timetable_upload' %}" class="button button--secondary button--small">
+          🔄 Upload Updated Timetable PDF
+        </a>
+        <a href="{% url 'planning:lesson_plan_list' %}" class="button button--primary button--small">
+          + Plan a Lesson
+        </a>
+      </div>
+    </div>
+  </header>
+
+  {# Teaching Assignments Summary #}
+  <section class="panel panel--blue" style="margin-bottom:24px;">
+    <header class="panel__header">
+      <h2 style="font-size:14.5px; margin:0;">Active Teaching Assignments ({{ assignments|length }})</h2>
+    </header>
+    <div class="panel__body" style="padding:14px 16px;">
+      <div style="display:flex; flex-wrap:wrap; gap:10px;">
+        {% for a in assignments %}
+          <div style="background:var(--surface); border:1px solid var(--line); border-left:3.5px solid var(--accent-blue); border-radius:var(--r-sm); padding:8px 12px; font-size:13px;">
+            <strong style="color:var(--ink);">{{ a.subject.name }}</strong>
+            <span style="color:var(--ink-soft);">· {{ a.school_class.name }}</span>
+            {% if a.school_class.year_group %}
+              <span class="chip chip--saas" style="font-size:10.5px; padding:1px 5px; margin-left:4px;">{{ a.school_class.year_group }}</span>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div style="color:var(--ink-soft); font-size:13px; font-style:italic;">No teaching assignments found.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# Weekly Schedule Grid #}
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+    {% for day in days_info %}
+      {% if day.slots or day.index < 5 %}
+        <div class="panel" style="margin:0; border-top:3px solid {% if day.slots %}var(--accent-blue){% else %}var(--line){% endif %};">
+          <header class="panel__header" style="padding:10px 14px; background:var(--surface-2); display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:13.5px; color:var(--ink);">{{ day.name }}</strong>
+            <span class="chip chip--saas" style="font-size:10px; padding:1px 6px;">{{ day.slots|length }} lessons</span>
+          </header>
+
+          <div class="panel__body" style="padding:10px; display:flex; flex-direction:column; gap:8px;">
+            {% for slot in day.slots %}
+              <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:8px 10px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <strong style="color:var(--accent-blue); font-size:11px;">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</strong>
+                  <span style="font-size:10px; color:var(--ink-soft); font-weight:700;">{{ slot.period_label }}</span>
+                </div>
+                <div style="font-weight:700; color:var(--ink); font-size:13px;">{{ slot.assignment.subject.name }}</div>
+                <div style="color:var(--ink-soft); font-size:11.5px; display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                  <span>{{ slot.assignment.school_class.name }}</span>
+                  {% if slot.room %}<span style="font-style:italic;">📍 {{ slot.room }}</span>{% endif %}
+                </div>
+              </div>
+            {% empty %}
+              <div style="padding:16px 8px; text-align:center; color:var(--ink-soft); font-size:12px; font-style:italic;">
+                No lessons
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

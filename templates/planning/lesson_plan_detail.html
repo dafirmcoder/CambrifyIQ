@@ -1,110 +1,315 @@
 {% extends "base.html" %}
-{% block title %}Lesson Plan · {{ plan.assignment.subject.name }}{% endblock %}
+{% block title %}{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} — Lesson Plan · {{ active_school.name }}{% endblock %}
 {% block content %}
-<div class="page-shell">
-  <header class="page-header">
-    <div>
-      <span class="role-chip">{{ plan.get_status_display }}</span>
-      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
-      <p>{{ plan.lesson_date|date:"j M Y" }} · {{ plan.term.name }} · {{ plan.scheme.title }} · revision {{ plan.revision }}</p>
-    </div>
-    <div>
-      <a class="button button--secondary" href="{% url 'planning:lesson_plan_pdf' plan.pk %}">Preview PDF</a>
-      <a class="button button--secondary" href="{% url 'planning:lesson_plan_list' %}">All Lesson Plans</a>
-    </div>
-  </header>
+<div class="page-shell" style="max-width:980px; margin:0 auto;">
+  <header class="page-header" style="margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <span class="role-chip">{{ plan.assignment.subject.code }} · {{ plan.assignment.school_class.name }}</span>
+          {% if plan.status == "draft" %}
+            <span class="chip chip--draft">Draft</span>
+          {% elif plan.status == "submitted" or plan.status == "resubmitted" %}
+            <span class="chip chip--submitted">{{ plan.get_status_display }}</span>
+          {% elif plan.status == "approved" %}
+            <span class="chip chip--approved">✓ Approved</span>
+          {% elif plan.status == "returned" %}
+            <span class="chip chip--returned">Returned</span>
+          {% endif %}
 
-  {% if editable %}
-    <form method="post">{% csrf_token %}
-      <input type="hidden" name="revision" value="{{ plan.revision }}">
-  {% endif %}
-
-  <section class="panel">
-    <header class="panel__header"><h2>Lesson details</h2></header>
-    <div class="panel__body">
-      <p>
-        <label for="lesson_date">Lesson date</label>
-        <input id="lesson_date" name="lesson_date" type="date" value="{{ plan.lesson_date|date:'Y-m-d' }}" {% if not editable %}disabled{% endif %}>
-      </p>
-
-      <p>
-        <label for="topic">Topic</label>
-        <select id="topic" name="topic" {% if not editable %}disabled{% endif %}>
-          <option value="">Choose a topic</option>
-          {% for topic in topics %}
-            <option value="{{ topic.pk }}" {% if plan.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>
-          {% endfor %}
-        </select>
-      </p>
-
-      <p>
-        <label for="subtopic">Subtopic</label>
-        <select id="subtopic" name="subtopic" {% if not editable %}disabled{% endif %}>
-          <option value="">Choose an optional subtopic</option>
-          {% for subtopic in subtopics %}
-            <option value="{{ subtopic.pk }}" {% if plan.subtopic_id == subtopic.pk %}selected{% endif %}>{{ subtopic.title }}</option>
-          {% endfor %}
-        </select>
-      </p>
-
-      <div class="form-grid">
-        <p>
-          <label for="boys_attendance">Boys attendance</label>
-          <input id="boys_attendance" name="boys_attendance" type="number" min="0" value="{{ plan.boys_attendance }}" {% if not editable %}disabled{% endif %}>
-        </p>
-        <p>
-          <label for="girls_attendance">Girls attendance</label>
-          <input id="girls_attendance" name="girls_attendance" type="number" min="0" value="{{ plan.girls_attendance }}" {% if not editable %}disabled{% endif %}>
+          {% if plan.is_lesson_past %}
+            <span class="badge" style="background:#F5F3FF; color:#7C3AED; font-weight:700; font-size:11px;">
+              ⏱ Lesson Concluded
+            </span>
+          {% else %}
+            <span class="badge" style="background:#EFF6FF; color:#2563EB; font-weight:700; font-size:11px;">
+              ⏳ Upcoming Lesson
+            </span>
+          {% endif %}
+        </div>
+        <h1 style="font-size:22px; margin:2px 0;">{{ plan.assignment.subject.name }}</h1>
+        <p style="color:var(--ink-soft); font-size:13.5px; margin:0;">
+          {{ plan.lesson_date|date:"l, j F Y" }}
+          {% if plan.start_time and plan.end_time %}
+            · <strong>{{ plan.start_time|time:"H:i" }} – {{ plan.end_time|time:"H:i" }}</strong>
+          {% endif %}
+          · {{ plan.assignment.school_class.name }}
+          {% if plan.originating_work_plan_week %}
+            · <a href="{% url 'planning:work_plan_detail' plan.originating_work_plan_week.work_plan_id %}">Work Plan Week {{ plan.originating_work_plan_week.sequence }}</a>
+          {% endif %}
         </p>
       </div>
 
-      <p>
-        <label for="main_teaching_activity">Main teaching activity</label>
-        <textarea id="main_teaching_activity" name="main_teaching_activity" rows="5" {% if not editable %}disabled{% endif %}>{{ plan.main_teaching_activity }}</textarea>
-      </p>
-
-      <p>
-        <label for="assessment_ideas">Assessment ideas</label>
-        <textarea id="assessment_ideas" name="assessment_ideas" rows="5" {% if not editable %}disabled{% endif %}>{{ plan.assessment_ideas }}</textarea>
-      </p>
-
-      <p>
-        <label for="notes_remarks">Notes / remarks</label>
-        <textarea id="notes_remarks" name="notes_remarks" rows="3" {% if not editable %}disabled{% endif %}>{{ plan.notes_remarks }}</textarea>
-      </p>
-
-      <fieldset>
-        <legend>Resources</legend>
-        {% with resources=plan.resources %}
-        <label><input type="checkbox" name="resources" value="Lesson Notes" {% if "Lesson Notes" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Lesson Notes</label><br>
-        <label><input type="checkbox" name="resources" value="Projector" {% if "Projector" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Projector</label><br>
-        <label><input type="checkbox" name="resources" value="Laptop" {% if "Laptop" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Laptop</label><br>
-        <label><input type="checkbox" name="resources" value="Learner's Book" {% if "Learner's Book" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Learner's Book</label><br>
-        <label><input type="checkbox" name="resources" value="Teacher's Resource" {% if "Teacher's Resource" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Teacher's Resource</label><br>
-        <label><input type="checkbox" name="resources" value="Whiteboard/marker" {% if "Whiteboard/marker" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}> Whiteboard/marker</label><br>
-        {% endwith %}
-      </fieldset>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="button" class="button button--secondary button--small btn-preview-pdf" data-pdf-url="{% url 'planning:lesson_plan_pdf' plan.pk %}" data-title="Lesson Plan — {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} ({{ plan.lesson_date|date:'j M Y' }})">
+          📄 Preview PDF
+        </button>
+        <a href="{% url 'planning:lesson_plan_list' %}" class="button button--subtle button--small">
+          ← Back to Timetable & Plans
+        </a>
+      </div>
     </div>
-  </section>
+  </header>
 
-  <section class="panel">
-    <header class="panel__header"><h2>Learning objectives</h2></header>
-    <div class="panel__body">
-      {% for objective in objectives %}
-        <label>
-          <input type="checkbox" name="objectives" value="{{ objective.pk }}" {% if objective.pk|stringformat:'s' in plan.selected_objective_ids %}checked{% endif %} {% if not editable %}disabled{% endif %}>
-          {{ objective.code }} — {{ objective.text }}
-        </label><br>
-      {% endfor %}
+  {# Lifecycle Status Banner #}
+  {% if not plan.is_lesson_past %}
+    <div style="padding:12px 16px; background:#EFF6FF; border-left:4px solid #2563EB; border-radius:var(--r-sm); margin-bottom:20px; font-size:13px; color:#1E40AF; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:20px;">🔒</span>
+      <div>
+        <strong>Pre-Lesson Planning Phase:</strong> This lesson is scheduled for <strong>{{ plan.lesson_date|date:"l, j F Y" }}{% if plan.end_time %} at {{ plan.end_time|time:"H:i" }}{% endif %}</strong>. Student attendance and evaluation remarks will unlock once the lesson concludes.
+      </div>
     </div>
-  </section>
-
-  {% if editable %}
-    <button class="button button--primary" type="submit">Save draft</button>
-    </form>
-    <form method="post" action="{% url 'planning:lesson_plan_submit' plan.pk %}" style="display:inline">{% csrf_token %}
-      <button class="button button--secondary" type="submit">Submit for review</button>
-    </form>
+  {% else %}
+    <div style="padding:12px 16px; background:#F5F3FF; border-left:4px solid #7C3AED; border-radius:var(--r-sm); margin-bottom:20px; font-size:13px; color:#5B21B6; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:20px;">✏️</span>
+      <div>
+        <strong>Post-Lesson Delivery Phase:</strong> The scheduled lesson has taken place. Please enter your <strong>student attendance</strong> and <strong>teacher remarks/reflections</strong> below before final submission for review.
+      </div>
+    </div>
   {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="revision" value="{{ plan.revision }}">
+
+    {# 1. CORE DETAILS #}
+    <section class="panel panel--blue" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>1. Context & Topic Details</h2>
+      </header>
+      <div class="panel__body" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div>
+          <label for="topic" style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">Topic / Unit</label>
+          <select id="topic" name="topic" class="field select" style="width:100%;" {% if not editable %}disabled{% endif %}>
+            {% for topic in topics %}
+              <option value="{{ topic.pk }}" {% if plan.topic_id == topic.pk %}selected{% endif %}>{{ topic.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="subtopic" style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">Sub-unit / Subtopic (Optional)</label>
+          <select id="subtopic" name="subtopic" class="field select" style="width:100%;" {% if not editable %}disabled{% endif %}>
+            <option value="">All Units / None</option>
+            {% for subtopic in subtopics %}
+              <option value="{{ subtopic.pk }}" {% if plan.subtopic_id == subtopic.pk %}selected{% endif %}>{{ subtopic.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="lesson_date" style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">
+            Lesson Date
+          </label>
+          <input id="lesson_date" name="lesson_date" type="date" class="field" style="width:100%; font-weight:700;" value="{{ plan.lesson_date|date:'Y-m-d' }}" {% if not editable %}disabled{% endif %}>
+        </div>
+
+        <div>
+          <label style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">Class Roster Total</label>
+          <div style="font-size:13px; color:var(--ink); padding:8px 12px; background:var(--surface-2); border-radius:var(--r-sm); border:1px solid var(--line);">
+            👥 {{ plan.assignment.school_class.name }} (Boys: {{ plan.assignment.school_class.boys_count }}, Girls: {{ plan.assignment.school_class.girls_count }} · Total: {{ plan.assignment.school_class.roster_total }})
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# 2. RESOURCES CHECKLIST #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>2. Resources Checklist</h2>
+      </header>
+      <div class="panel__body">
+        {% with resources=plan.resources %}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Lesson Notes" {% if "Lesson Notes" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Lesson Notes</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Projector" {% if "Projector" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Projector</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Laptop" {% if "Laptop" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Laptop</span>
+            </label>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Learner's Book" {% if "Learner's Book" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Learner's Book</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Teacher's Resource" {% if "Teacher's Resource" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Teacher's Resource</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+              <input type="checkbox" name="resources" value="Whiteboard/marker" {% if "Whiteboard/marker" in resources %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+              <span>Whiteboard/marker</span>
+            </label>
+          </div>
+        </div>
+        {% endwith %}
+      </div>
+    </section>
+
+    {# 3. LEARNING OBJECTIVES #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h2>3. Learning Objectives</h2>
+        {% if origin_week %}
+          <span style="font-size:12.5px; color:var(--ink-soft);">
+            Scoped to Work Plan <strong>Week {{ origin_week.sequence }}</strong>
+          </span>
+        {% endif %}
+      </header>
+      <div class="panel__body">
+        <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;">
+          <strong>By the end of this lesson, learners should be able to:</strong>
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+          {% for item in current_week_objectives %}
+            <label style="display:flex; align-items:flex-start; gap:10px; padding:10px 14px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); cursor:{% if editable and not item.is_used_in_other_lessons %}pointer{% else %}default{% endif %}; opacity:{% if item.is_used_in_other_lessons %}0.65{% else %}1{% endif %};">
+              <input type="checkbox" name="objectives" value="{{ item.id }}" {% if item.is_selected_in_this_lesson %}checked{% endif %} {% if not editable or item.is_used_in_other_lessons %}disabled{% endif %} style="margin-top:3px;">
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <strong style="color:var(--accent-blue); font-size:13.5px;">{{ item.code }}</strong>
+                  {% if item.is_used_in_other_lessons %}
+                    <span class="chip chip--draft" style="font-size:11px; padding:1px 6px;">Covered in another lesson this week</span>
+                  {% elif item.is_selected_in_this_lesson %}
+                    <span class="chip chip--approved" style="font-size:11px; padding:1px 6px;">Selected</span>
+                  {% endif %}
+                </div>
+                <p style="font-size:13px; margin:4px 0 0; color:var(--ink);">{{ item.text }}</p>
+                <div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">
+                  {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}
+                </div>
+              </div>
+            </label>
+          {% empty %}
+            <p style="color:var(--ink-soft); font-size:13.5px; font-style:italic;">No objectives planned in this Work Plan week.</p>
+          {% endfor %}
+        </div>
+
+        {% if borrowable_weeks %}
+          <details style="margin-top:16px; padding:12px 16px; background:var(--surface-3); border:1px solid var(--line); border-radius:var(--r-md);" {% if is_current_week_exhausted %}open{% endif %}>
+            <summary style="font-size:13px; font-weight:700; color:var(--accent-blue); cursor:pointer;">
+              ➕ Borrow objectives from subsequent weeks (Sequential Borrowing)
+            </summary>
+            <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+              {% for bw in borrowable_weeks %}
+                <div style="padding:10px; background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-sm);">
+                  <div style="font-size:12px; font-weight:700; color:var(--ink); margin-bottom:8px;">
+                    Week {{ bw.sequence }}: {{ bw.week_label }}{% if bw.topic_title %} · {{ bw.topic_title }}{% endif %}
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for item in bw.objectives %}
+                      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; cursor:pointer;">
+                        <input type="checkbox" name="objectives" value="{{ item.id }}" {% if item.is_selected_in_this_lesson %}checked{% endif %} {% if not editable %}disabled{% endif %} style="margin-top:2px;">
+                        <div>
+                          <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
+                          <span class="chip chip--submitted" style="font-size:10.5px; padding:1px 5px; margin-left:6px;">From Week {{ bw.sequence }}</span>
+                        </div>
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+      </div>
+    </section>
+
+    {# 4. MAIN TEACHING ACTIVITY #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>4. Main Teaching Activity</h2>
+      </header>
+      <div class="panel__body">
+        <label for="main_teaching_activity" style="font-size:12.5px; color:var(--ink-soft); display:block; margin-bottom:6px;">
+          Outline starter / hook, direct instruction, guided activities, and plenary:
+        </label>
+        <textarea id="main_teaching_activity" name="main_teaching_activity" rows="8" class="field" style="width:100%;" placeholder="1. Starter / Introduction (10 mins)&#10;2. Main Teaching & Hands-on Activities (30 mins)&#10;3. Plenary & Wrap-up (10 mins)" {% if not editable %}disabled{% endif %}>{{ plan.main_teaching_activity }}</textarea>
+      </div>
+    </section>
+
+    {# 5. ASSESSMENT IDEAS #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>5. Assessment Ideas</h2>
+      </header>
+      <div class="panel__body">
+        <label for="assessment_ideas" style="font-size:12.5px; color:var(--ink-soft); display:block; margin-bottom:6px;">
+          Formative assessment strategies and checks for understanding:
+        </label>
+        <textarea id="assessment_ideas" name="assessment_ideas" rows="4" class="field" style="width:100%;" placeholder="Targeted questioning, peer assessment, exit ticket..." {% if not editable %}disabled{% endif %}>{{ plan.assessment_ideas }}</textarea>
+      </div>
+    </section>
+
+    {# 6. POST-LESSON EXECUTION: ATTENDANCE & REMARKS #}
+    <section class="panel {% if plan.is_lesson_past %}panel--purple{% else %}panel--subtle{% endif %}" style="margin-bottom:24px;">
+      <header class="panel__header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">{% if plan.is_lesson_past %}📝{% else %}🔒{% endif %}</span>
+          <h2 style="font-size:15px; margin:0;">6. Post-Lesson Delivery: Attendance & Teacher Remarks</h2>
+        </div>
+        <span class="badge" style="font-size:11.5px; {% if plan.is_lesson_past %}background:#F5F3FF; color:#7C3AED;{% else %}background:var(--surface-3); color:var(--ink-soft);{% endif %}">
+          {% if plan.is_lesson_past %}Unlocked for Entry{% else %}To be filled after the lesson{% endif %}
+        </span>
+      </header>
+      <div class="panel__body">
+        {% if not plan.is_lesson_past %}
+          <div style="padding:14px 16px; background:var(--surface-2); border:1.5px dashed var(--line); border-radius:var(--r-sm); text-align:center; color:var(--ink-soft);">
+            <div style="font-size:24px; margin-bottom:4px;">⏱️</div>
+            <strong style="display:block; font-size:13.5px; color:var(--ink); margin-bottom:4px;">To be filled after the lesson</strong>
+            <p style="font-size:12.5px; margin:0; max-width:480px; margin:0 auto;">
+              Attendance and teacher evaluation remarks unlock once the scheduled lesson concludes on <strong>{{ plan.lesson_date|date:"l, j F Y" }}{% if plan.end_time %} at {{ plan.end_time|time:"H:i" }}{% endif %}</strong>.
+            </p>
+          </div>
+        {% else %}
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+            <div>
+              <label for="boys_attendance" style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">Boys Present</label>
+              <input id="boys_attendance" name="boys_attendance" type="number" min="0" max="{{ plan.assignment.school_class.boys_count }}" class="field" style="width:100%; font-weight:700;" value="{{ plan.boys_attendance|default_if_none:'' }}" placeholder="e.g. 12" {% if not editable %}disabled{% endif %} required>
+            </div>
+            <div>
+              <label for="girls_attendance" style="font-size:12.5px; font-weight:700; display:block; margin-bottom:4px;">Girls Present</label>
+              <input id="girls_attendance" name="girls_attendance" type="number" min="0" max="{{ plan.assignment.school_class.girls_count }}" class="field" style="width:100%; font-weight:700;" value="{{ plan.girls_attendance|default_if_none:'' }}" placeholder="e.g. 12" {% if not editable %}disabled{% endif %} required>
+            </div>
+          </div>
+
+          <div>
+            <label for="notes_remarks" style="font-size:12.5px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+              Teacher Evaluation & Reflection Remarks (Required for Submission):
+            </label>
+            <textarea id="notes_remarks" name="notes_remarks" rows="4" class="field" style="width:100%;" placeholder="Reflect on learner understanding, student misconceptions addressed, extension activities, and adjustments for the next lesson..." {% if not editable %}disabled{% endif %} required>{{ plan.notes_remarks }}</textarea>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# Action Buttons #}
+    {% if editable %}
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px;">
+        <button class="button button--primary" type="submit">💾 Save Draft</button>
+  </form>
+
+        <form method="post" action="{% url 'planning:lesson_plan_submit' plan.pk %}" style="display:inline">
+          {% csrf_token %}
+          {% if plan.is_lesson_past %}
+            <button class="button button--secondary button--large" type="submit" style="background:#7C3AED; color:#fff; font-weight:800;">
+              🚀 Submit Lesson Plan for Review
+            </button>
+          {% else %}
+            <button class="button button--secondary" type="button" disabled title="Submission unlocks once the lesson concludes and remarks/attendance are recorded." style="opacity:0.6; cursor:not-allowed;">
+              🔒 Submit (Unlocks After Lesson)
+            </button>
+          {% endif %}
+        </form>
+      </div>
+    {% endif %}
 </div>
 {% endblock %}

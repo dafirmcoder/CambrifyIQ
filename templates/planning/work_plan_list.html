@@ -3,47 +3,73 @@
 {% block title %}Work Plans{% endblock %}
 {% block content %}
 <div class="page-shell">
-  <header class="page-header">
+  <header class="page-header" style="margin-bottom: 24px;">
     <div class="page-header__left">
-      <h1>Work Plans</h1>
-      <p>Create a plan from an active assignment, curriculum scheme and school calendar.</p>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+        <span style="font-size:26px;">📋</span>
+        <h1 style="font-size:24px; font-weight:800; color:var(--ink); margin:0;">Work Plans</h1>
+      </div>
+      <p style="color:var(--ink-soft); font-size:14px; margin:0;">Create and collaborate on single-source-of-truth semester curriculum plans across all school subjects.</p>
     </div>
   </header>
 
-  <div class="dashboard-grid" style="grid-template-columns: minmax(0,2fr) minmax(320px,1fr); align-items: start;">
+  <div class="dashboard-grid" style="display:grid; grid-template-columns: minmax(0, 1.85fr) minmax(360px, 1.15fr); gap: 24px; align-items: start;">
 
     {# Existing plans table #}
-    <section class="panel">
-      <header class="panel__header">
-        <h2>My Work Plans</h2>
+    <section class="panel" style="border-radius:var(--r-xl); background:var(--surface); border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+      <header class="panel__header" style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="font-size:16px; font-weight:700; color:var(--ink); margin:0;">School Work Plans</h2>
+          <small style="color:var(--ink-soft); font-size:12px;">One collaborative master plan per subject and class level</small>
+        </div>
+        <span class="chip chip--saas chip--indigo" style="font-size:12px; font-weight:600; padding:4px 12px; border-radius:999px;">{{ plans|length }} Active Plans</span>
       </header>
       {% if plans %}
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Subject & Class</th>
+              <th style="padding-left:24px;">Subject & Class</th>
               <th>Year Group</th>
               <th>Term</th>
+              <th>Author</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="text-align:right; padding-right:24px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for plan in plans %}
             <tr>
-              <td>
-                <strong>{{ plan.assignment.subject.name }}</strong>
-                <small style="display:block; color:var(--ink-soft);">{{ plan.assignment.school_class.name }}</small>
+              <td style="padding-left:24px;">
+                <strong style="color:var(--ink); font-size:14px; display:block;">{{ plan.subject_display }}</strong>
+                <span style="color:var(--ink-soft); font-size:12.5px; font-weight:500;">{{ plan.class_display }}</span>
               </td>
-              <td>{{ plan.assignment.school_class.year_group|default:"—" }}</td>
-              <td>{{ plan.term.name }}</td>
               <td>
-                <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
+                <span class="chip chip--saas chip--sky" style="font-size:11px; font-weight:600;">{{ plan.year_group|default:"—" }}</span>
               </td>
-              <td class="table-actions">
-                <a class="button button--secondary button--small" href="{% url 'planning:work_plan_detail' plan.pk %}">Open</a>
-                <a class="button button--secondary button--small" href="{% url 'planning:work_plan_pdf' plan.pk %}">PDF</a>
+              <td>
+                <span style="font-size:13px; font-weight:600; color:var(--ink-mid);">{{ plan.term.name }}</span>
+              </td>
+              <td>
+                <span style="font-size:12.5px; color:var(--ink-soft);">
+                  {% if plan.author == request.user %}
+                    <strong style="color:var(--brand); font-weight:700;">You</strong>
+                  {% else %}
+                    {{ plan.author.get_full_name|default:plan.author.email }}
+                  {% endif %}
+                </span>
+              </td>
+              <td>
+                <span class="chip chip--saas {% if plan.status == 'approved' %}chip--emerald{% elif plan.status == 'submitted' or plan.status == 'resubmitted' %}chip--amber{% elif plan.status == 'returned' %}chip--rose{% else %}chip--indigo{% endif %}" style="font-size:11.5px; font-weight:600;">
+                  <span class="status-dot {% if plan.status == 'approved' %}status-dot--emerald status-dot--pulse{% elif plan.status == 'submitted' or plan.status == 'resubmitted' %}status-dot--amber status-dot--pulse{% elif plan.status == 'returned' %}status-dot--rose{% else %}status-dot--indigo{% endif %}"></span>
+                  {{ plan.get_status_display }}
+                </span>
+              </td>
+              <td class="table-actions" style="text-align:right; padding-right:24px;">
+                <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                  <a class="button button--subtle button--small" href="{% url 'planning:work_plan_detail' plan.pk %}" style="font-weight:600;">Open</a>
+                  <button type="button" class="button button--subtle button--small btn-preview-pdf" data-pdf-url="{% url 'planning:work_plan_pdf' plan.pk %}" data-title="Work Plan — {{ plan.subject_display }} · {{ plan.class_display }} ({{ plan.term.name }})">📄 PDF</button>
+                </div>
               </td>
             </tr>
             {% endfor %}
@@ -51,117 +77,341 @@
         </table>
       </div>
       {% else %}
-      <div class="empty-state">
-        <div class="empty-state__icon">📋</div>
-        <h3>No work plans yet</h3>
-        <p>Use the form to create your first semester work plan from the calendar.</p>
+      <div class="empty-state" style="padding:60px 24px; text-align:center;">
+        <div class="empty-state__icon" style="font-size:44px; margin-bottom:12px;">📋</div>
+        <h3 style="font-size:17px; font-weight:700; color:var(--ink); margin-bottom:6px;">No work plans yet</h3>
+        <p style="color:var(--ink-soft); font-size:13.5px; max-width:380px; margin:0 auto 16px auto;">Use the sidebar to create the master semester work plan for any class and subject.</p>
       </div>
       {% endif %}
     </section>
 
     {# Creation form #}
-    <div class="form-panel">
-      <h2>New Work Plan</h2>
-      <p style="color:var(--ink-soft); font-size:13.5px; margin-bottom:20px;">Select your assigned class/subject, term and curriculum scheme.</p>
+    <div class="form-panel" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--r-xl); padding:24px; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:17px; font-weight:800; color:var(--ink); margin:0 0 4px 0;">New Work Plan</h2>
+        <p style="color:var(--ink-soft); font-size:13px; margin:0;">Filter by curriculum tier, pick a class & subject, and snapshot school calendar weeks.</p>
+      </div>
+
       {% if form.non_field_errors %}
-      <div class="form-errors">
-        <ul>{% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}</ul>
+      <div class="form-errors" style="background:var(--rose-soft); border:1px solid var(--rose-border); border-radius:var(--r-md); padding:12px; margin-bottom:16px; color:var(--rose);">
+        <ul style="margin:0; padding-left:18px; font-size:13px; font-weight:600;">
+          {% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}
+        </ul>
       </div>
       {% endif %}
+
+      {# Dynamic Duplicate Warning Card #}
+      <div id="duplicate-plan-card" style="display:none; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; padding:14px 16px; margin-bottom:18px; animation: fadeIn 0.2s ease;">
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          <span style="font-size:22px; line-height:1;">ℹ️</span>
+          <div style="flex:1;">
+            <div style="font-size:13.5px; font-weight:700; color:#1e40af; margin-bottom:3px;">Work Plan Already Exists</div>
+            <p style="font-size:12px; color:#2563eb; margin:0 0 10px 0; line-height:1.4;">
+              A single source of truth plan for <strong id="dup-plan-title"></strong> is already created by <strong id="dup-plan-author"></strong>.
+            </p>
+            <a id="btn-open-existing-plan" href="#" class="button button--small button--gradient" style="font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(79,70,229,0.25);">
+              👁️ Open Existing Work Plan
+            </a>
+          </div>
+        </div>
+      </div>
+
       <form method="post" class="form-stack" id="work-plan-create-form">
         {% csrf_token %}
-        <p>
-          <label for="{{ form.assignment.id_for_label }}">Assigned class / subject</label>
-          {{ form.assignment }}
-          {% if form.assignment.errors %}<ul class="errorlist">{% for e in form.assignment.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          <span class="helptext">Only your active assignments at this school are listed.</span>
+        {{ form.assignment }}
+
+        {# Step 1: Curriculum Framework / Tier #}
+        <p style="margin-bottom:16px;">
+          <label for="filter-framework" style="font-size:13px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+            1. Curriculum Framework / Tier
+          </label>
+          <select id="filter-framework" name="framework_tier" class="field select" style="width:100%; font-weight:600;">
+            <option value="">-- All Frameworks / Tiers --</option>
+            {% for fw in frameworks_meta %}
+              <option value="{{ fw.code }}">{{ fw.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="helptext" style="font-size:11.5px; color:var(--ink-soft); display:block; margin-top:4px;">
+            Filters classes by Primary (Y1–6), Lower Sec (Y7–9), IGCSE (Y10–11) or AS/A Level (Y12–13).
+          </span>
         </p>
 
-        <p>
-          <label for="{{ form.academic_year.id_for_label }}">Academic year</label>
-          {{ form.academic_year }}
-          {% if form.academic_year.errors %}<ul class="errorlist">{% for e in form.academic_year.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        {# Step 2A: Class / Year Group #}
+        <p style="margin-bottom:16px;">
+          <label for="{{ form.school_class.id_for_label }}" style="font-size:13px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+            2. Class / Year Group
+          </label>
+          {{ form.school_class }}
+          {% if form.school_class.errors %}<ul class="errorlist">{% for e in form.school_class.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          <span class="helptext" style="font-size:11.5px; color:var(--ink-soft); display:block; margin-top:4px;">
+            Select a class or section within the chosen tier.
+          </span>
         </p>
 
-        <p>
-          <label for="{{ form.term.id_for_label }}">Term</label>
-          {{ form.term }}
-          {% if form.term.errors %}<ul class="errorlist">{% for e in form.term.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        {# Step 2B: Subject #}
+        <p style="margin-bottom:16px;">
+          <label for="{{ form.subject.id_for_label }}" style="font-size:13px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+            3. Subject
+          </label>
+          {{ form.subject }}
+          {% if form.subject.errors %}<ul class="errorlist">{% for e in form.subject.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          <span class="helptext" style="font-size:11.5px; color:var(--ink-soft); display:block; margin-top:4px;">
+            Shows subjects offered for the selected class / curriculum tier.
+          </span>
         </p>
 
-        <p>
-          <label for="{{ form.scheme.id_for_label }}">Curriculum scheme</label>
-          {{ form.scheme }}
-          {% if form.scheme.errors %}<ul class="errorlist">{% for e in form.scheme.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-          <span id="scheme-helper" class="helptext">Must match the assignment's subject and year group.</span>
-        </p>
-
-        <div id="no-scheme-warning" style="display:none; padding:10px 12px; margin-bottom:14px; background:var(--warn-soft); color:var(--warn); border-radius:var(--r-sm); font-size:12.5px; font-weight:600;">
-          ⚠️ No compatible active curriculum scheme found for this assignment. Please check with an administrator.
+        {# Step 3: Academic Year & Term #}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div>
+            <label for="{{ form.academic_year.id_for_label }}" style="font-size:12.5px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+              Academic Year
+            </label>
+            {{ form.academic_year }}
+            {% if form.academic_year.errors %}<ul class="errorlist">{% for e in form.academic_year.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.term.id_for_label }}" style="font-size:12.5px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+              Term
+            </label>
+            {{ form.term }}
+            {% if form.term.errors %}<ul class="errorlist">{% for e in form.term.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          </div>
         </div>
 
-        <button class="button button--primary" id="btn-create-draft" type="submit" style="width:100%; margin-top:8px;">Create draft</button>
+        {# Step 4: Curriculum Scheme #}
+        <p style="margin-bottom:18px;">
+          <label for="{{ form.scheme.id_for_label }}" style="font-size:13px; font-weight:700; color:var(--ink); display:block; margin-bottom:6px;">
+            4. Curriculum Scheme (Scheme of Work)
+          </label>
+          {{ form.scheme }}
+          {% if form.scheme.errors %}<ul class="errorlist">{% for e in form.scheme.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          <span id="scheme-helper" class="helptext" style="font-size:11.5px; color:var(--ink-soft); display:block; margin-top:4px;">
+            Auto-filtered to match the selected subject and year group in the tier.
+          </span>
+        </p>
+
+        <div id="no-scheme-warning" style="display:none; padding:12px 14px; margin-bottom:16px; background:var(--amber-soft); border:1px solid var(--amber-border); color:var(--amber-dark); border-radius:var(--r-md); font-size:12.5px; font-weight:600;">
+          ⚠️ No active Cambridge curriculum scheme found for this subject/tier combination.
+        </div>
+
+        <button class="button button--gradient" id="btn-create-draft" type="submit" style="width:100%; height:44px; font-size:14px; font-weight:700; justify-content:center; box-shadow:0 4px 14px rgba(79,70,229,0.3);">
+          + Create Master Work Plan
+        </button>
       </form>
     </div>
   </div>
 </div>
 
+{{ frameworks_meta|json_script:"frameworks-data" }}
+{{ classes_meta|json_script:"classes-data" }}
+{{ subjects_meta|json_script:"subjects-data" }}
 {{ assignment_meta|json_script:"assignment-data" }}
+{{ existing_plans_meta|json_script:"existing-plans-data" }}
 {{ scheme_meta|json_script:"scheme-data" }}
 {{ term_meta|json_script:"term-data" }}
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+  const frameworksData = JSON.parse(document.getElementById("frameworks-data")?.textContent || "[]");
+  const classesData = JSON.parse(document.getElementById("classes-data")?.textContent || "[]");
+  const subjectsData = JSON.parse(document.getElementById("subjects-data")?.textContent || "[]");
   const assignmentData = JSON.parse(document.getElementById("assignment-data")?.textContent || "[]");
+  const existingPlansData = JSON.parse(document.getElementById("existing-plans-data")?.textContent || "[]");
   const schemeData = JSON.parse(document.getElementById("scheme-data")?.textContent || "[]");
   const termData = JSON.parse(document.getElementById("term-data")?.textContent || "[]");
 
-  const assignmentSelect = document.getElementById("id_assignment");
-  const yearSelect = document.getElementById("id_academic_year");
-  const termSelect = document.getElementById("id_term");
-  const schemeSelect = document.getElementById("id_scheme");
+  const frameworkSelect = document.getElementById("filter-framework");
+  const classSelect = document.getElementById("id_wp_school_class");
+  const subjectSelect = document.getElementById("id_wp_subject");
+  const assignmentHidden = document.getElementById("id_wp_assignment");
+  const yearSelect = document.getElementById("id_wp_academic_year");
+  const termSelect = document.getElementById("id_wp_term");
+  const schemeSelect = document.getElementById("id_wp_scheme");
+
+  const dupCard = document.getElementById("duplicate-plan-card");
+  const dupTitle = document.getElementById("dup-plan-title");
+  const dupAuthor = document.getElementById("dup-plan-author");
+  const btnOpenDup = document.getElementById("btn-open-existing-plan");
+
   const warnBox = document.getElementById("no-scheme-warning");
   const submitBtn = document.getElementById("btn-create-draft");
 
-  function filterSchemes() {
-    if (!assignmentSelect || !schemeSelect) return;
-    const selectedAssId = assignmentSelect.value;
-    const assignment = assignmentData.find(a => a.id === selectedAssId);
+  // 1. Populate/Filter Classes based on chosen Framework Tier
+  function filterClasses() {
+    if (!classSelect) return;
+    const selectedFw = frameworkSelect ? frameworkSelect.value : "";
+    const currentClassVal = classSelect.value;
 
-    const currentSchemeVal = schemeSelect.value;
-    schemeSelect.innerHTML = '<option value="">---------</option>';
+    classSelect.innerHTML = '<option value="">-- Select Class / Year Group --</option>';
 
-    if (!assignment) {
-      schemeData.forEach(s => {
-        const opt = document.createElement("option");
-        opt.value = s.id;
-        opt.textContent = s.title;
-        schemeSelect.appendChild(opt);
-      });
-      warnBox.style.display = "none";
-      submitBtn.disabled = false;
-      return;
+    let matchedClasses = classesData;
+    if (selectedFw) {
+      matchedClasses = classesData.filter(c => c.framework_code === selectedFw);
     }
 
-    const matched = schemeData.filter(s => {
-      const subMatch = (s.subject_code === assignment.subject_code);
-      const ygMatch = !assignment.year_group || (s.year_group === assignment.year_group);
-      return subMatch && ygMatch;
+    matchedClasses.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      const ygLabel = c.year_group ? ` (${c.year_group})` : "";
+      opt.textContent = c.name + ygLabel;
+      if (c.id === currentClassVal) {
+        opt.selected = true;
+      }
+      classSelect.appendChild(opt);
     });
 
-    if (matched.length === 0) {
-      warnBox.style.display = "block";
+    filterSubjects();
+    filterSchemes();
+    checkDuplicatePlan();
+  }
+
+  // Helper: Exact and alias-based matching between a School Subject and a Curriculum Scheme
+  function isSubjectMatch(schoolSub, scheme) {
+    if (!schoolSub || !scheme) return false;
+    const sName = (schoolSub.name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, " ").trim().replace(/\s+/g, " ");
+    const schName = (scheme.subject_name || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, " ").trim().replace(/\s+/g, " ");
+    const sCode = (schoolSub.cambridge_code || schoolSub.code || "").trim();
+    const schCode = (scheme.subject_code || "").trim();
+
+    // 1. Exact Cambridge code match
+    if (sCode && schCode && sCode === schCode) {
+      return true;
+    }
+
+    // 2. Exact normalized name match
+    if (sName === schName) {
+      return true;
+    }
+
+    // 3. Strict Subject Aliases (prevent "Computer Science" from matching "Science")
+    const subjectAliases = {
+      "computing": ["computing", "computer studies"],
+      "computer science": ["computer science", "cs"],
+      "science": ["science", "general science", "integrated science", "combined science"],
+      "mathematics": ["mathematics", "maths", "math"],
+      "english": ["english", "first language english", "english first language"],
+      "english as a second language": ["english as a second language", "esl", "english second language"],
+      "information and communication technology": ["information and communication technology", "ict", "it", "information technology"],
+      "art and design": ["art and design", "art", "arts", "art & design"],
+      "global perspectives": ["global perspectives", "gp", "global perspectives & research", "global perspectives and research"],
+      "humanities": ["humanities", "social studies"],
+      "music": ["music"],
+      "physical education": ["physical education", "pe"],
+      "wellbeing": ["wellbeing", "health and wellbeing"]
+    };
+
+    const validAliases = subjectAliases[schName] || [schName];
+    return validAliases.includes(sName);
+  }
+
+  // 2. Filter Subjects scoped to the selected Class / Tier (ignoring teacher assignment)
+  function filterSubjects() {
+    if (!subjectSelect) return;
+    const currentSubVal = subjectSelect.value;
+    const selectedClassId = classSelect ? classSelect.value : "";
+    const selectedFw = frameworkSelect ? frameworkSelect.value : "";
+
+    const selectedClass = classesData.find(c => c.id === selectedClassId);
+    const activeTier = selectedClass ? selectedClass.framework_code : selectedFw;
+
+    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+
+    // Find schemes that belong to this tier
+    const tierSchemes = activeTier ? schemeData.filter(s => s.framework_code === activeTier) : schemeData;
+
+    // Filter school subjects that have at least one valid curriculum scheme in this tier
+    let classSubjects = subjectsData.filter(s => {
+      if (!activeTier) return true;
+      return tierSchemes.some(sch => isSubjectMatch(s, sch));
+    });
+
+    if (classSubjects.length === 0) {
+      classSubjects = subjectsData;
+    }
+
+    // Sort alphabetically
+    classSubjects.sort((a, b) => a.name.localeCompare(b.name));
+
+    let stillValid = false;
+    classSubjects.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name + (s.cambridge_code ? ` (${s.cambridge_code})` : "");
+      if (s.id === currentSubVal) {
+        opt.selected = true;
+        stillValid = true;
+      }
+      subjectSelect.appendChild(opt);
+    });
+
+    if (!stillValid && currentSubVal) {
+      subjectSelect.value = "";
+    }
+  }
+
+  // 3. Filter Curriculum Schemes based on selected Class, Subject & Tier
+  function filterSchemes() {
+    if (!schemeSelect) return;
+    const selectedFw = frameworkSelect ? frameworkSelect.value : "";
+    const selectedClassId = classSelect ? classSelect.value : "";
+    const selectedSubId = subjectSelect ? subjectSelect.value : "";
+
+    const selectedClass = classesData.find(c => c.id === selectedClassId);
+    const selectedSub = subjectsData.find(s => s.id === selectedSubId);
+
+    // Sync assignment hidden input if teacher has matching assignment
+    if (assignmentHidden) {
+      const matchingAss = assignmentData.find(a => a.class_id === selectedClassId && a.subject_id === selectedSubId);
+      assignmentHidden.value = matchingAss ? matchingAss.id : "";
+    }
+
+    const currentSchemeVal = schemeSelect.value;
+    schemeSelect.innerHTML = '<option value="">-- Select Curriculum Scheme --</option>';
+
+    let matched = schemeData;
+
+    // Filter by framework tier if selected
+    if (selectedFw) {
+      matched = matched.filter(s => s.framework_code === selectedFw);
+    } else if (selectedClass && selectedClass.framework_code) {
+      // Auto-filter by class's tier
+      matched = matched.filter(s => s.framework_code === selectedClass.framework_code);
+    }
+
+    // Filter by subject strictly
+    if (selectedSub) {
+      matched = matched.filter(s => isSubjectMatch(selectedSub, s));
+    }
+
+    // Filter by class year group if available
+    if (selectedClass && selectedClass.year_group) {
+      const ygClean = selectedClass.year_group.toLowerCase().replace(/[^0-9]/g, "");
+      if (ygClean) {
+        const ygMatched = matched.filter(s => {
+          const sYgClean = (s.year_group || "").toLowerCase().replace(/[^0-9]/g, "");
+          return sYgClean === ygClean;
+        });
+        if (ygMatched.length > 0) {
+          matched = ygMatched;
+        }
+      }
+    }
+
+    if (matched.length === 0 && selectedSub) {
+      if (warnBox) warnBox.style.display = "block";
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "No matching scheme available";
+      opt.textContent = "No matching Cambridge scheme available";
       opt.disabled = true;
       schemeSelect.appendChild(opt);
     } else {
-      warnBox.style.display = "none";
+      if (warnBox) warnBox.style.display = "none";
       matched.forEach(s => {
         const opt = document.createElement("option");
         opt.value = s.id;
-        opt.textContent = s.title;
+        const yearsStr = s.syllabus_years ? ` ${s.syllabus_years}` : "";
+        const ygStr = s.year_group ? ` (${s.year_group})` : "";
+        opt.textContent = `${s.subject_code} ${s.subject_name}${yearsStr}${ygStr}`;
         if (s.id === currentSchemeVal || matched.length === 1) {
           opt.selected = true;
         }
@@ -170,13 +420,54 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
+  // 4. Real-Time Single Source of Truth Duplicate Check
+  function checkDuplicatePlan() {
+    const selectedClassId = classSelect ? classSelect.value : "";
+    const selectedSubId = subjectSelect ? subjectSelect.value : "";
+    const selectedTermId = termSelect ? termSelect.value : "";
+
+    if (!selectedClassId || !selectedSubId || !selectedTermId) {
+      if (dupCard) dupCard.style.display = "none";
+      if (submitBtn) {
+        submitBtn.style.display = "flex";
+        submitBtn.disabled = false;
+      }
+      return;
+    }
+
+    const existing = existingPlansData.find(p => 
+      p.class_id === selectedClassId &&
+      p.subject_id === selectedSubId &&
+      p.term_id === selectedTermId
+    );
+
+    if (existing) {
+      if (dupCard) {
+        dupCard.style.display = "block";
+        if (dupTitle) dupTitle.textContent = `${existing.subject_name} · ${existing.class_name} (${existing.term_name})`;
+        if (dupAuthor) dupAuthor.textContent = existing.author_name;
+        if (btnOpenDup) btnOpenDup.href = existing.url;
+      }
+      if (submitBtn) {
+        submitBtn.style.display = "none";
+      }
+    } else {
+      if (dupCard) dupCard.style.display = "none";
+      if (submitBtn) {
+        submitBtn.style.display = "flex";
+        submitBtn.disabled = false;
+      }
+    }
+  }
+
+  // 5. Term Filter based on Academic Year
   function filterTerms() {
     if (!yearSelect || !termSelect) return;
     const yearId = yearSelect.value;
     const currentTermVal = termSelect.value;
 
     const matchedTerms = yearId ? termData.filter(t => t.academic_year_id === yearId) : termData;
-    termSelect.innerHTML = '<option value="">---------</option>';
+    termSelect.innerHTML = '<option value="">-- Select Term --</option>';
 
     matchedTerms.forEach(t => {
       const opt = document.createElement("option");
@@ -187,19 +478,48 @@ document.addEventListener("DOMContentLoaded", function() {
       }
       termSelect.appendChild(opt);
     });
+
+    checkDuplicatePlan();
   }
 
-  if (assignmentSelect) {
-    assignmentSelect.addEventListener("change", filterSchemes);
+  // Event Listeners
+  if (frameworkSelect) {
+    frameworkSelect.addEventListener("change", function() {
+      filterClasses();
+    });
   }
+
+  if (classSelect) {
+    classSelect.addEventListener("change", function() {
+      const selectedClass = classesData.find(c => c.id === classSelect.value);
+      if (selectedClass && selectedClass.framework_code && (!frameworkSelect.value || frameworkSelect.value !== selectedClass.framework_code)) {
+        frameworkSelect.value = selectedClass.framework_code;
+      }
+      filterSubjects();
+      filterSchemes();
+      checkDuplicatePlan();
+    });
+  }
+
+  if (subjectSelect) {
+    subjectSelect.addEventListener("change", function() {
+      filterSchemes();
+      checkDuplicatePlan();
+    });
+  }
+
   if (yearSelect) {
     yearSelect.addEventListener("change", filterTerms);
   }
 
-  // Initial run if already selected (e.g. form resubmission)
-  if (assignmentSelect && assignmentSelect.value) {
-    filterSchemes();
+  if (termSelect) {
+    termSelect.addEventListener("change", checkDuplicatePlan);
   }
+
+  // Initial setup
+  filterClasses();
+  filterSubjects();
+  filterTerms();
 });
 </script>
 {% endblock %}

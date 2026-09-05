@@ -2,75 +2,92 @@
 {% load core_tags %}
 {% block title %}Work Plan · {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}{% endblock %}
 {% block content %}
-<div class="page-shell" style="max-width: 1400px;">
-  <header class="page-header">
+<div class="page-shell" style="max-width: 1440px;">
+  
+  {# ── Header & Breadcrumbs ── #}
+  <header class="page-header" style="margin-bottom: 20px;">
     <div class="page-header__left">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-        <span class="chip chip--{{ plan.status }}">{{ plan.get_status_display }}</span>
-        <span style="font-size:13px; color:var(--ink-soft);">Revision {{ plan.revision }}</span>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+        <span class="chip chip--saas {% if plan.status == 'approved' %}chip--emerald{% elif plan.status == 'submitted' or plan.status == 'resubmitted' %}chip--amber{% elif plan.status == 'returned' %}chip--rose{% else %}chip--indigo{% endif %}">
+          <span class="status-dot {% if plan.status == 'approved' %}status-dot--emerald status-dot--pulse{% elif plan.status == 'submitted' or plan.status == 'resubmitted' %}status-dot--amber status-dot--pulse{% elif plan.status == 'returned' %}status-dot--rose{% else %}status-dot--indigo{% endif %}"></span>
+          {{ plan.get_status_display }}
+        </span>
+        <span class="chip chip--saas chip--sky" style="font-size:11.5px;">Rev. {{ plan.revision }}</span>
+        <span style="font-size:13px; color:var(--ink-soft);">{{ plan.scheme.framework.name }}</span>
       </div>
-      <h1>{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
-      <p>{{ plan.term.name }} · {{ plan.scheme.title }} ({{ plan.scheme.subject_code }}{% if plan.scheme.year_group %} · {{ plan.scheme.year_group }}{% endif %})</p>
+      <h1 style="font-size:24px; font-weight:800; letter-spacing:-.5px; margin:0 0 4px;">
+        {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}
+      </h1>
+      <p style="color:var(--ink-soft); font-size:13.5px; margin:0;">
+        {{ plan.term.name }} · {{ plan.scheme.title }} ({{ plan.scheme.subject_code }}{% if plan.scheme.year_group %} · {{ plan.scheme.year_group }}{% endif %})
+      </p>
     </div>
-    <div class="button-row">
-      <a class="button button--secondary" href="{% url 'planning:work_plan_pdf' plan.pk %}" target="_blank">Preview PDF</a>
-      <a class="button button--secondary" href="{% url 'planning:work_plan_list' %}">All Work Plans</a>
+    <div class="button-row" style="gap:10px;">
+      <button type="button" class="button button--subtle btn-preview-pdf" data-pdf-url="{% url 'planning:work_plan_pdf' plan.pk %}" data-title="Work Plan — {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} ({{ plan.term.name }})">
+        📄 Preview PDF
+      </button>
+      <a class="button button--subtle" href="{% url 'planning:work_plan_list' %}">
+        All Work Plans
+      </a>
     </div>
   </header>
 
   {# ══════════════════════════════════════════════════════════════════════ #}
-  {# COVERAGE SUMMARY BANNER                                              #}
+  {# COVERAGE & TIMELINE METRIC BANNER                                     #}
   {# ══════════════════════════════════════════════════════════════════════ #}
-  <div class="panel panel--coverage" style="margin-bottom:24px; padding:20px 24px;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:16px;">
-      <div>
-        <h3 style="font-size:16px; font-weight:800; margin:0 0 4px; display:flex; align-items:center; gap:8px;">
-          <span>Curriculum Coverage Progress</span>
-          <span id="coverage-projected-percent-badge" class="chip chip--approved" style="font-size:12px;">{{ coverage.projected_objective_percent }}%</span>
+  <div class="metric-progress-banner">
+    <div style="flex:1; min-width:280px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <h3 style="font-size:15px; font-weight:800; margin:0; display:flex; align-items:center; gap:8px;">
+          <span>Curriculum Coverage & Completion</span>
         </h3>
-        <p style="font-size:13px; color:var(--ink-soft); margin:0;">
-          Previously planned objectives are hidden for this class and subject. Coverage is based on approved Work Plans from earlier terms.
-        </p>
+        <span id="coverage-projected-percent-badge" class="chip chip--saas chip--emerald" style="font-size:12px; font-weight:800;">
+          {{ coverage.projected_objective_percent }}%
+        </span>
       </div>
-      <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-        <div style="text-align:right;">
-          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Objectives Planned</span>
-          <div style="font-size:18px; font-weight:800;">
-            <span id="cov-stat-projected-objs">{{ coverage.projected_covered_objectives }}</span> / {{ coverage.total_objectives }}
-          </div>
-        </div>
-        <div style="text-align:right; border-left:1px solid var(--line); padding-left:16px;">
-          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Topics Covered</span>
-          <div style="font-size:18px; font-weight:800;">
-            <span id="cov-stat-topics-covered">{{ coverage.covered_topics }}</span> / {{ coverage.total_topics }} (<span id="cov-stat-topic-percent">{{ coverage.projected_topic_percent }}</span>%)
-          </div>
-        </div>
-        <div style="text-align:right; border-left:1px solid var(--line); padding-left:16px;">
-          <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Remaining</span>
-          <div id="cov-stat-remaining" style="font-size:18px; font-weight:800; color:var(--accent-orange);">{{ coverage.remaining_objectives }}</div>
-        </div>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">
+        Real-time tracking of planned, previously covered, and remaining Cambridge learning objectives.
+      </p>
+
+      {# Dual-Segment Progress Track #}
+      <div class="progress-pill-track" style="margin-bottom:8px;">
+        <div id="cov-bar-previous" style="position:absolute; left:0; top:0; bottom:0; width:{{ coverage.previous_objective_percent }}%; background:var(--accent-green); border-radius:9999px 0 0 9999px;" title="Previous Coverage: {{ coverage.previously_covered_objectives }} objectives ({{ coverage.previous_objective_percent }}%)"></div>
+        <div id="cov-bar-current" style="position:absolute; left:{{ coverage.previous_objective_percent }}%; top:0; bottom:0; width:{% if coverage.total_objectives %}{% widthratio coverage.current_plan_objectives coverage.total_objectives 100 %}{% else %}0{% endif %}%; background:var(--accent-blue); border-radius:0 9999px 9999px 0;" title="This Plan Adds: {{ coverage.current_plan_objectives }} objectives"></div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:16px; font-size:11.5px; color:var(--ink-soft); flex-wrap:wrap;">
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:var(--accent-green); display:inline-block;"></span>
+          Previous: <strong id="cov-legend-prev" style="color:var(--ink);">{{ coverage.previously_covered_objectives }}</strong> ({{ coverage.previous_objective_percent }}%)
+        </span>
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:var(--accent-blue); display:inline-block;"></span>
+          This Plan: <strong id="cov-legend-curr" style="color:var(--ink);">{{ coverage.current_plan_objectives }}</strong>
+        </span>
+        <span>
+          Total Scheme: <strong style="color:var(--ink);">{{ coverage.total_objectives }}</strong> LOs
+        </span>
       </div>
     </div>
 
-    {# Dual-Segment Progress Track #}
-    <div class="coverage-progress-track">
-      <div id="cov-bar-previous" class="coverage-progress-prev" style="width:{{ coverage.previous_objective_percent }}%;" title="Previous Coverage: {{ coverage.previously_covered_objectives }} objectives ({{ coverage.previous_objective_percent }}%)"></div>
-      <div id="cov-bar-current" class="coverage-progress-curr" style="width:{% if coverage.total_objectives %}{% widthratio coverage.current_plan_objectives coverage.total_objectives 100 %}{% else %}0{% endif %}%;" title="This Plan Adds: {{ coverage.current_plan_objectives }} objectives"></div>
-    </div>
-
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; gap:8px;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        <span style="display:inline-flex; align-items:center; gap:6px;">
-          <span style="width:10px; height:10px; border-radius:50%; background:var(--accent-green); display:inline-block;"></span>
-          Previous Coverage: <strong id="cov-legend-prev">{{ coverage.previously_covered_objectives }}</strong> ({{ coverage.previous_objective_percent }}%)
-        </span>
-        <span style="display:inline-flex; align-items:center; gap:6px;">
-          <span style="width:10px; height:10px; border-radius:50%; background:var(--accent-blue); display:inline-block;"></span>
-          This Plan Adds: <strong id="cov-legend-curr">{{ coverage.current_plan_objectives }}</strong>
-        </span>
+    <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap; border-left:1px solid var(--line); padding-left:24px;">
+      <div style="text-align:right;">
+        <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px; display:block;">Objectives Planned</span>
+        <div style="font-size:20px; font-weight:900; color:var(--ink); line-height:1.2;">
+          <span id="cov-stat-projected-objs">{{ coverage.projected_covered_objectives }}</span> <span style="font-size:13px; font-weight:600; color:var(--ink-soft);">/ {{ coverage.total_objectives }}</span>
+        </div>
       </div>
-      <div>
-        Total Scheme: <strong>{{ coverage.total_objectives }}</strong> Objectives
+      <div style="text-align:right; border-left:1px solid var(--line); padding-left:20px;">
+        <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px; display:block;">Topics Covered</span>
+        <div style="font-size:20px; font-weight:900; color:var(--ink); line-height:1.2;">
+          <span id="cov-stat-topics-covered">{{ coverage.covered_topics }}</span> <span style="font-size:13px; font-weight:600; color:var(--ink-soft);">/ {{ coverage.total_topics }}</span>
+        </div>
+      </div>
+      <div style="text-align:right; border-left:1px solid var(--line); padding-left:20px;">
+        <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px; display:block;">Remaining</span>
+        <div id="cov-stat-remaining" style="font-size:20px; font-weight:900; color:var(--accent-orange); line-height:1.2;">
+          {{ coverage.remaining_objectives }}
+        </div>
       </div>
     </div>
   </div>
@@ -83,16 +100,46 @@
     {# ══════════════════════════════════════════════════════════════════════ #}
     {# LEFT PANEL: CURRICULUM LIBRARY                                       #}
     {# ══════════════════════════════════════════════════════════════════════ #}
-    <aside class="panel curriculum-library-panel panel--blue" aria-label="Curriculum library">
-      <header class="panel__header">
-        <h2>Curriculum Library</h2>
-        <span id="library-selected-count" class="chip chip--draft" style="font-size:11.5px;">0 selected</span>
+    <aside class="panel curriculum-library-panel panel--blue" aria-label="Curriculum library" style="border-radius:var(--r-lg);">
+      <header class="panel__header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">📚</span>
+          <h2 style="font-size:15px; margin:0;">Curriculum Library</h2>
+        </div>
+        <span id="library-selected-count" class="chip chip--saas chip--indigo" style="font-size:11px;">0 selected</span>
       </header>
-      <div class="panel__body">
+      <div class="panel__body" style="padding:16px;">
         
+        {# Cross-Subject Borrowing Tabs (e.g. Computing <-> Digital Literacy, CS <-> ICT, Business <-> Economics) #}
+        {% if curriculum_json.companion_schemes %}
+          <div class="cross-subject-tabs" id="cross-subject-tabs-container" role="tablist">
+            <button type="button" class="cross-subject-tab cross-subject-tab--active btn-cross-subject-tab" data-scheme-id="{{ curriculum_json.scheme_id }}">
+              📘 {{ plan.assignment.subject.name }}
+            </button>
+            {% for cs in curriculum_json.companion_schemes %}
+              <button type="button" class="cross-subject-tab btn-cross-subject-tab" data-scheme-id="{{ cs.id }}" title="Borrow learning objectives from {{ cs.title }}">
+                🔄 Borrow: {{ cs.subject_name }}
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {# Smart Cross-Curricular Recommendations Banner #}
+        <div id="smart-hints-container" class="smart-hints-banner" style="display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:4px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:14px;">💡</span>
+              <strong id="smart-hints-theme-title" style="font-size:12px; color:var(--ink);">Related Cross-Subject Links</strong>
+            </div>
+            <span class="chip chip--saas chip--amber" style="font-size:10px; padding:1px 5px;">Smart Recommendation</span>
+          </div>
+          <p id="smart-hints-description" style="font-size:11.5px; color:var(--ink-soft); margin:0 0 8px; line-height:1.3;"></p>
+          <div id="smart-hints-tags" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
         {# Target week selector #}
         <div>
-          <label for="library-target-week" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Target teaching week</label>
+          <label for="library-target-week" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">Target Teaching Week</label>
           <select id="library-target-week" class="field select" style="width:100%;">
             {% for week in weeks %}
               {% if week.is_instructional %}
@@ -104,7 +151,7 @@
 
         {# Topic filter #}
         <div>
-          <label for="library-topic-filter" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Topic filter</label>
+          <label for="library-topic-filter" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">Topic Filter</label>
           <select id="library-topic-filter" class="field select" style="width:100%;">
             <option value="">-- Choose a Topic to browse --</option>
             {% for topic in curriculum_json.topics %}
@@ -117,7 +164,7 @@
 
         {# Unit / Subtopic filter #}
         <div>
-          <label for="library-unit-filter" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Unit filter</label>
+          <label for="library-unit-filter" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">Unit Filter</label>
           <select id="library-unit-filter" class="field select" style="width:100%;" disabled>
             <option value="">All Units in this Topic</option>
           </select>
@@ -125,20 +172,20 @@
 
         {# Search input #}
         <div>
-          <label for="library-search-input" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;">Search available objectives</label>
-          <input type="search" id="library-search-input" class="objective-search-input" placeholder="Search by code (e.g. 8Sc.01) or text..." aria-label="Search objectives">
+          <label for="library-search-input" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px;">Search Objectives</label>
+          <input type="search" id="library-search-input" class="field" placeholder="Search by code (e.g. 8Sc.01) or text..." aria-label="Search objectives" style="width:100%;">
         </div>
 
         {# Action buttons #}
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <button type="button" id="btn-add-selected" class="button button--primary button--small" style="width:100%;" disabled>
+          <button type="button" id="btn-add-selected" class="button button--gradient button--small" style="width:100%; justify-content:center;" disabled>
             + Add selected to target week
           </button>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-            <button type="button" id="btn-add-topic" class="button button--secondary button--small" disabled title="Add all available objectives in current Topic">
+            <button type="button" id="btn-add-topic" class="button button--subtle button--small" disabled title="Add all available objectives in current Topic" style="justify-content:center;">
               + All in Topic
             </button>
-            <button type="button" id="btn-add-unit" class="button button--secondary button--small" disabled title="Add all available objectives in current Unit">
+            <button type="button" id="btn-add-unit" class="button button--subtle button--small" disabled title="Add all available objectives in current Unit" style="justify-content:center;">
               + All in Unit
             </button>
           </div>
@@ -147,11 +194,11 @@
         {# Objectives list #}
         <div style="flex:1; display:flex; flex-direction:column;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:12px; font-weight:700; color:var(--ink-soft);">Available Objectives</span>
-            <button type="button" id="btn-toggle-all-visible" class="button button--ghost button--small" style="padding:2px 6px; font-size:11.5px; height:auto; min-height:auto;" disabled>Select all</button>
+            <span style="font-size:11.5px; font-weight:700; color:var(--ink-soft);">Available Objectives</span>
+            <button type="button" id="btn-toggle-all-visible" class="button button--ghost button--small" style="padding:2px 6px; font-size:11px; height:auto; min-height:auto;" disabled>Select all</button>
           </div>
-          <div id="library-objectives-container" class="objective-list-box" role="group" aria-label="Available curriculum learning objectives">
-            <div id="library-empty-prompt" style="padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
+          <div id="library-objectives-container" class="objective-list-box" role="group" aria-label="Available curriculum learning objectives" style="border-radius:var(--r-md); max-height:480px;">
+            <div id="library-empty-prompt" style="padding:24px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
               Select a Topic above to explore learning objectives.
             </div>
           </div>
@@ -161,65 +208,88 @@
     </aside>
 
     {# ══════════════════════════════════════════════════════════════════════ #}
-    {# RIGHT PANEL: WEEKLY PLAN                                             #}
+    {# RIGHT PANEL: WEEKLY CALENDAR MATRIX / SAAS TIMELINE                  #}
     {# ══════════════════════════════════════════════════════════════════════ #}
-    <main aria-label="Weekly plan schedule">
+    <main class="panel calendar-matrix-panel" aria-label="Teaching weeks schedule" style="border-radius:var(--r-lg);">
       
-      {# Lesson count summary and global actions bar #}
-      <div class="panel" style="margin-bottom:20px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-        <div style="display:flex; align-items:center; gap:16px;">
+      <div class="panel__header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 20px;">
+        <div style="display:flex; align-items:center; gap:20px;">
           <div>
-            <span style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Total Planned Lessons</span>
-            <div id="summary-total-lessons" style="font-size:24px; font-weight:800; color:var(--accent-blue); line-height:1.1;">0</div>
+            <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px;">Total Planned Lessons</span>
+            <div id="summary-total-lessons" style="font-size:22px; font-weight:900; color:var(--accent-blue); line-height:1.1;">0</div>
           </div>
           <div style="border-left:1px solid var(--line); padding-left:16px;">
-            <span style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.8px;">Instructional Weeks</span>
-            <div style="font-size:24px; font-weight:800; line-height:1.1;">{{ weeks|length }}</div>
+            <span style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px;">Instructional Weeks</span>
+            <div style="font-size:22px; font-weight:900; line-height:1.1;">{{ weeks|length }}</div>
           </div>
         </div>
 
-        {% if editable %}
         <div class="button-row">
-          <button type="button" id="btn-save-draft-top" class="button button--primary">Save draft</button>
+          {% if editable %}
+            <button type="button" id="btn-save-draft-top" class="button button--gradient">Save draft</button>
+          {% elif plan.status == "approved" and can_remark %}
+            <button type="submit" form="work-plan-editor-form" name="action" value="save_remarks" class="button button--gradient">
+              💾 Save Weekly Remarks
+            </button>
+          {% endif %}
         </div>
-        {% endif %}
       </div>
 
-      {% if editable %}
-      <form method="post" id="work-plan-editor-form">
+      {% if editable or can_remark %}
+      <form method="post" id="work-plan-editor-form" style="padding:16px 20px;">
         {% csrf_token %}
         <input type="hidden" name="revision" value="{{ plan.revision }}">
+      {% else %}
+      <div style="padding:16px 20px;">
       {% endif %}
 
+        {# Timeline Lane Container #}
+        <div class="timeline-lane">
         {# Loop over weeks #}
         {% for week in weeks %}
-        <article class="week-card {% if not week.is_instructional %}week-row--special{% endif %}" id="week-card-{{ week.pk }}" data-week-id="{{ week.pk }}" data-is-instructional="{% if week.is_instructional %}true{% else %}false{% endif %}">
-          <header class="week-card__header">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span class="chip {% if week.is_instructional %}chip--approved{% else %}chip--submitted{% endif %}">
-                Week {{ week.sequence }}
-              </span>
-              <strong>{{ week.week_label }}</strong>
-              {% if week.month_label %}
-                <span style="color:var(--ink-soft); font-size:13px;">({{ week.month_label }})</span>
-              {% endif %}
-            </div>
+        <div class="timeline-step {% if week.is_current_week %}timeline-step--active{% elif week.is_past_week %}timeline-step--completed{% endif %}">
+          
+          {# Timeline Node Badge #}
+          <div class="timeline-node" title="Week {{ week.sequence }}">
+            <span style="font-size:9px; text-transform:uppercase; opacity:.7;">WK</span>
+            <span>{{ week.sequence|stringformat:"02d" }}</span>
+          </div>
 
-            <div style="display:flex; align-items:center; gap:8px;">
-              {% if week.is_instructional and editable %}
-                <button type="button" class="button button--secondary button--small btn-set-target" data-target-id="{{ week.pk }}">
-                  🎯 Target this week
-                </button>
-              {% elif not week.is_instructional %}
-                <span class="week-type-badge week-type-badge--special">{{ week.event_label|default:"Special event" }}</span>
-              {% endif %}
-            </div>
-          </header>
+          {# Week Card #}
+          <article class="week-card--timeline {% if not week.is_instructional %}week-row--special{% endif %} {% if week.is_current_week %}week-card--active-week{% endif %}" id="week-card-{{ week.pk }}" data-week-id="{{ week.pk }}" data-is-instructional="{% if week.is_instructional %}true{% else %}false{% endif %}">
+            <header class="week-card__header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--line);">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <strong style="font-size:14px; font-weight:800; color:var(--ink);">{{ week.week_label }}</strong>
+                {% if week.month_label %}
+                  <span class="chip chip--saas chip--sky" style="font-size:11px;">{{ week.month_label }}</span>
+                {% endif %}
 
-          <div class="week-card__body">
-            {% if week.is_instructional %}
-              
-              {# Row: Topic, Unit, Lessons #}
+                {% if plan.status == "approved" %}
+                  {% if week.is_past_week %}
+                    <span class="chip chip--saas chip--emerald" style="font-size:11px;"><span class="status-dot status-dot--emerald"></span> Past Week</span>
+                  {% elif week.is_current_week %}
+                    <span class="chip chip--saas chip--amber" style="font-size:11px;"><span class="status-dot status-dot--amber status-dot--pulse"></span> Current Week</span>
+                  {% else %}
+                    <span class="chip chip--saas" style="font-size:11px; opacity:0.8;">Upcoming</span>
+                  {% endif %}
+                {% endif %}
+              </div>
+
+              <div style="display:flex; align-items:center; gap:8px;">
+                {% if week.is_instructional and editable %}
+                  <button type="button" class="button button--subtle button--small btn-set-target" data-target-id="{{ week.pk }}">
+                    🎯 Target this week
+                  </button>
+                {% elif not week.is_instructional %}
+                  <span class="chip chip--saas chip--rose" style="font-size:11px;">{{ week.event_label|default:"Special event" }}</span>
+                {% endif %}
+              </div>
+            </header>
+
+            <div class="week-card__body">
+              {% if week.is_instructional %}
+                
+                {# Row: Topic, Unit, Lessons #}
               <div style="display:grid; grid-template-columns:1fr 1fr 140px; gap:14px; align-items:start;">
                 
                 {# Primary Topic #}
@@ -270,24 +340,66 @@
               {# Selected Objectives Section #}
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <label style="font-size:12.5px; font-weight:700;">Selected Learning Objectives (<span class="week-obj-count">{{ week.selected_objectives_details|length }}</span>)</label>
-                  <span style="font-size:12px; color:var(--ink-soft);">Add objectives from the Curriculum Library</span>
+                  <label style="font-size:12.5px; font-weight:700;">
+                    Selected Learning Objectives (<span class="week-obj-count">{{ week.selected_objectives_details|length }}</span>)
+                    {% if plan.status == "approved" %}
+                      <span style="font-weight:normal; color:var(--ink-soft); font-size:12px;">· Tick met objectives upon Friday completion</span>
+                    {% endif %}
+                  </label>
+                  {% if editable %}
+                    <span style="font-size:12px; color:var(--ink-soft);">Add objectives from the Curriculum Library</span>
+                  {% endif %}
                 </div>
 
                 <div class="week-objectives-container" id="week-obj-container-{{ week.pk }}" data-week-id="{{ week.pk }}">
                   {% for item in week.selected_objectives_details %}
-                    <div class="selected-objective-card" data-obj-id="{{ item.id }}" data-topic-id="{{ item.topic_id }}" data-subtopic-id="{{ item.subtopic_id }}">
+                    <div class="selected-objective-card {% if item.is_met %}objective-card--met{% endif %} {% if item.is_primary %}objective-card--primary{% else %}objective-card--borrowed{% endif %}" data-obj-id="{{ item.id }}" data-topic-id="{{ item.topic_id }}" data-subtopic-id="{{ item.subtopic_id }}">
                       <input type="hidden" name="week_{{ week.pk }}_objectives" value="{{ item.id }}">
-                      <div style="flex:1;">
-                        <strong style="color:var(--accent-blue);">{{ item.code }}</strong> — {{ item.text }}
-                        <div style="margin-top:4px; font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-                          <span>[Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}]</span>
-                          <span class="cross-unit-badge" style="display:none;">Cross-unit</span>
+                      
+                      <div style="display:flex; align-items:flex-start; gap:10px; width:100%;">
+                        {% if plan.status == "approved" %}
+                          {% if can_remark and week.can_remark %}
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:2px; user-select:none; flex-shrink:0;" title="Tick to verify this objective was met/achieved this week">
+                              <input type="checkbox" name="met_objectives" value="{{ item.id }}" {% if item.is_met %}checked{% endif %} class="met-objective-checkbox" style="width:17px; height:17px; accent-color:var(--accent-green); cursor:pointer;">
+                              <span style="font-size:11px; font-weight:700; color:{% if item.is_met %}var(--accent-green){% else %}var(--ink-soft){% endif %};">
+                                {% if item.is_met %}Met ✓{% else %}Mark Met{% endif %}
+                              </span>
+                            </label>
+                          {% else %}
+                            <div style="margin-top:2px; flex-shrink:0;">
+                              {% if item.is_met %}
+                                <span class="chip chip--approved" style="font-size:10.5px; padding:2px 6px;">✓ Met</span>
+                              {% else %}
+                                <span class="chip chip--draft" style="font-size:10.5px; padding:2px 6px; opacity:0.8;">Planned</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endif %}
+
+                        <div style="flex:1;">
+                          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <strong style="color:var(--accent-blue);">{{ item.code }}</strong>
+                            {% if item.is_primary %}
+                              <span class="chip chip--saas chip-obj-primary" style="background:var(--accent-purple-soft); color:var(--accent-purple); border-color:var(--accent-purple); font-size:10px; padding:1px 6px;">🟣 Primary Topic</span>
+                            {% else %}
+                              <span class="chip chip--saas chip--sky chip-obj-borrowed" style="font-size:10px; padding:1px 6px;" title="Borrowed objective (used alongside non-primary topic or <3 from same topic)">🔄 Borrowed</span>
+                            {% endif %}
+                            {% if item.is_cross_curricular %}
+                              <span class="chip chip--saas chip--amber" style="font-size:10px; padding:1px 6px;">Cross: {{ item.scheme_subject }}</span>
+                            {% endif %}
+                          </div>
+                          <span style="display:block; margin-top:2px;">{{ item.text }}</span>
+                          <div style="margin-top:4px; font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+                            <span>[Source: {{ item.topic_title }}{% if item.subtopic_title %} · {{ item.subtopic_title }}{% endif %}]</span>
+                            <span class="cross-unit-badge" style="display:none;">Cross-unit</span>
+                          </div>
                         </div>
+
+                        {% if editable %}
+                          <button type="button" class="remove-btn btn-remove-obj" aria-label="Remove objective {{ item.code }}">✕</button>
+                        {% endif %}
                       </div>
-                      {% if editable %}
-                        <button type="button" class="remove-btn btn-remove-obj" aria-label="Remove objective {{ item.code }}">✕</button>
-                      {% endif %}
+
                     </div>
                   {% empty %}
                     <div class="empty-objs-msg" style="color:var(--ink-soft); font-size:13px; font-style:italic; padding:8px 4px;">
@@ -307,20 +419,35 @@
 
             {# Remarks #}
             <div>
-              <label for="week_{{ week.pk }}_remarks" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Remarks</label>
-              <textarea id="week_{{ week.pk }}_remarks" name="week_{{ week.pk }}_remarks" rows="2" {% if not editable %}disabled{% endif %} placeholder="Optional notes for this week..." style="width:100%; min-height:60px;">{{ week.remarks }}</textarea>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label for="week_{{ week.pk }}_remarks" style="display:block; font-size:12px; font-weight:700;">
+                  Weekly Remarks & Reflections
+                </label>
+                {% if plan.status == "approved" and not week.can_remark %}
+                  <span style="font-size:11.5px; color:var(--ink-soft);">🔒 Remarks open when this teaching week begins</span>
+                {% endif %}
+              </div>
+              <textarea id="week_{{ week.pk }}_remarks" name="week_{{ week.pk }}_remarks" rows="2" 
+                {% if plan.status == "approved" %}
+                  {% if not can_remark or not week.can_remark %}disabled{% endif %}
+                  placeholder="{% if week.can_remark %}Enter your Friday reflections and achievements for this week...{% else %}Remarks will open when this teaching week begins.{% endif %}"
+                {% else %}
+                  {% if not editable %}disabled{% endif %}
+                  placeholder="Optional notes for this week..."
+                {% endif %}
+                style="width:100%; min-height:60px;">{{ week.remarks }}</textarea>
             </div>
-
-          </div>
-        </article>
+          </article>
+        </div>
         {% endfor %}
+        </div> {# Close timeline-lane #}
 
         {# Resources #}
-        <section class="panel" style="margin-top:24px;">
-          <header class="panel__header"><h2>General Resources & Notes</h2></header>
-          <div class="panel__body">
-            <label for="resources" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px;">General Resources</label>
-            <textarea id="resources" name="resources" rows="4" {% if not editable %}disabled{% endif %} placeholder="Textbooks, digital resources, apparatus, equipment...">{{ plan.resources }}</textarea>
+        <section class="panel" style="margin-top:24px; border-radius:var(--r-lg);">
+          <header class="panel__header"><h2 style="font-size:15px;">General Resources & Notes</h2></header>
+          <div class="panel__body" style="padding:16px 20px;">
+            <label for="resources" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:6px;">General Resources</label>
+            <textarea id="resources" name="resources" rows="4" class="field" {% if not editable %}disabled{% endif %} placeholder="Textbooks, digital resources, apparatus, equipment..." style="width:100%;">{{ plan.resources }}</textarea>
           </div>
         </section>
 
@@ -335,6 +462,15 @@
             <button class="button button--orange button--large" type="submit">Submit for review</button>
           </form>
         </div>
+        {% elif plan.status == "approved" and can_remark %}
+        <div style="margin-top:24px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+          <button class="button button--primary button--large" type="submit" name="action" value="save_remarks">
+            💾 Save Weekly Remarks & Reflections
+          </button>
+        </div>
+      </form>
+        {% elif editable or can_remark %}
+      </form>
         {% endif %}
 
     </main>
@@ -347,11 +483,57 @@
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   const curriculum = JSON.parse(document.getElementById("curriculum-data")?.textContent || "{}");
-  // Curriculum data
-  const topics = curriculum.topics || [];
-  const units = curriculum.units || [];
-  const objectives = curriculum.objectives || [];
+  
+  // Schemes data
+  const mainSchemeId = curriculum.scheme_id || "";
+  const companionSchemes = curriculum.companion_schemes || [];
+  const smartHints = curriculum.smart_hints || {};
   const coverageData = curriculum.coverage || {};
+
+  let activeSchemeId = mainSchemeId;
+
+  // Function to get active scheme's topics, units, and objectives
+  function getActiveSchemeData() {
+    if (activeSchemeId === mainSchemeId) {
+      return {
+        id: mainSchemeId,
+        subject_name: curriculum.scheme_subject || "",
+        title: curriculum.scheme_title || "",
+        topics: curriculum.topics || [],
+        units: curriculum.units || [],
+        objectives: curriculum.objectives || [],
+        is_companion: false,
+      };
+    }
+    const companion = companionSchemes.find(cs => cs.id === activeSchemeId);
+    if (companion) {
+      return {
+        id: companion.id,
+        subject_name: companion.subject_name || "",
+        title: companion.title || "",
+        topics: companion.topics || [],
+        units: companion.units || [],
+        objectives: companion.objectives || [],
+        is_companion: true,
+      };
+    }
+    return {
+      id: mainSchemeId,
+      subject_name: "",
+      title: "",
+      topics: [],
+      units: [],
+      objectives: [],
+      is_companion: false,
+    };
+  }
+
+  // All objectives across main scheme and all companion schemes
+  const allAvailableObjectivesMap = new Map();
+  (curriculum.objectives || []).forEach(o => allAvailableObjectivesMap.set(o.id, o));
+  companionSchemes.forEach(cs => {
+    (cs.objectives || []).forEach(o => allAvailableObjectivesMap.set(o.id, o));
+  });
 
   const topicFilter = document.getElementById("library-topic-filter");
   const unitFilter = document.getElementById("library-unit-filter");
@@ -366,6 +548,7 @@ document.addEventListener("DOMContentLoaded", function() {
   const announcer = document.getElementById("live-announcer");
   const topSaveBtn = document.getElementById("btn-save-draft-top");
   const editorForm = document.getElementById("work-plan-editor-form");
+  const smartHintsContainer = document.getElementById("smart-hints-container");
 
   let isDirty = false;
 
@@ -375,7 +558,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // Top save button proxy
+  // Save buttons & dirty state
   if (topSaveBtn && editorForm) {
     topSaveBtn.addEventListener("click", function() {
       isDirty = false;
@@ -402,33 +585,112 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // Track objectives currently in use in this Work Plan
-  let currentlyPlannedObjIds = new Set();
-  let currentlyPlannedObjectivesMap = new Map(); // objId -> Array of week sequence numbers
+  // Track objective statuses across weeks:
+  // Primary Weeks: weeks where objective matches primary topic AND >= 3 from that topic in week
+  // Borrowed Weeks: weeks where objective is used without satisfying the primary topic cluster rule
+  let primaryWeeksByObjId = new Map();   // objId -> Array of week numbers [1, 2]
+  let borrowedWeeksByObjId = new Map();  // objId -> Array of week numbers [3]
+  let allPlannedObjIds = new Set();      // all currently scheduled objIds
 
   function scanCurrentPlanObjectives() {
-    currentlyPlannedObjIds.clear();
-    currentlyPlannedObjectivesMap.clear();
+    primaryWeeksByObjId.clear();
+    borrowedWeeksByObjId.clear();
+    allPlannedObjIds.clear();
 
-    document.querySelectorAll(".week-card[data-is-instructional='true']").forEach(card => {
-      const chipEl = card.querySelector(".chip");
-      const weekSeq = chipEl ? chipEl.textContent.replace("Week", "").trim() : "";
+    const weekCards = Array.from(document.querySelectorAll(".week-card[data-is-instructional='true']"));
+
+    // First pass: inspect each week card
+    weekCards.forEach(card => {
       const weekId = card.dataset.weekId;
+      const weekNode = card.closest(".timeline-step")?.querySelector(".timeline-node span:last-child");
+      const weekSeq = weekNode ? parseInt(weekNode.textContent, 10) : card.dataset.sequence;
+      const weekTopicSelect = document.getElementById("week_" + weekId + "_topic");
+      const weekPrimaryTopicId = weekTopicSelect ? weekTopicSelect.value : "";
+
       const container = document.getElementById("week-obj-container-" + weekId);
       if (!container) return;
 
-      container.querySelectorAll("input[name^='week_'][name$='_objectives']").forEach(inp => {
-        const objId = inp.value;
-        if (!objId) return;
-        currentlyPlannedObjIds.add(objId);
-        if (!currentlyPlannedObjectivesMap.has(objId)) {
-          currentlyPlannedObjectivesMap.set(objId, []);
-        }
-        if (weekSeq && !currentlyPlannedObjectivesMap.get(objId).includes(weekSeq)) {
-          currentlyPlannedObjectivesMap.get(objId).push(weekSeq);
+      const cardEls = Array.from(container.querySelectorAll(".selected-objective-card"));
+      
+      // Count frequency of each topic within this week
+      const topicCounts = {};
+      cardEls.forEach(el => {
+        const tId = el.dataset.topicId;
+        if (tId) {
+          topicCounts[tId] = (topicCounts[tId] || 0) + 1;
         }
       });
+
+      // Classify each objective in this week
+      cardEls.forEach(el => {
+        const objId = el.dataset.objId;
+        const objTopicId = el.dataset.topicId;
+        if (!objId) return;
+
+        allPlannedObjIds.add(objId);
+
+        // Primary Cluster Rule: Week's topic matches objective topic AND >= 3 from same topic in this week
+        const isPrimary = Boolean(
+          weekPrimaryTopicId &&
+          objTopicId &&
+          objTopicId === weekPrimaryTopicId &&
+          (topicCounts[objTopicId] || 0) >= 3
+        );
+
+        if (isPrimary) {
+          if (!primaryWeeksByObjId.has(objId)) {
+            primaryWeeksByObjId.set(objId, []);
+          }
+          if (weekSeq && !primaryWeeksByObjId.get(objId).includes(weekSeq)) {
+            primaryWeeksByObjId.get(objId).push(weekSeq);
+          }
+        } else {
+          if (!borrowedWeeksByObjId.has(objId)) {
+            borrowedWeeksByObjId.set(objId, []);
+          }
+          if (weekSeq && !borrowedWeeksByObjId.get(objId).includes(weekSeq)) {
+            borrowedWeeksByObjId.get(objId).push(weekSeq);
+          }
+        }
+
+        // Live update week card badge
+        updateWeekCardObjectiveBadge(el, isPrimary, weekSeq);
+      });
     });
+  }
+
+  function updateWeekCardObjectiveBadge(cardEl, isPrimaryInWeek, currentWeekSeq) {
+    const objId = cardEl.dataset.objId;
+    let badgeContainer = cardEl.querySelector(".chip-obj-primary, .chip-obj-borrowed");
+    
+    // Check if this objective was taught as primary in an earlier week
+    const primWeeks = primaryWeeksByObjId.get(objId) || [];
+    const hasPriorPrimary = primWeeks.some(w => w < currentWeekSeq);
+
+    if (isPrimaryInWeek) {
+      cardEl.classList.remove("objective-card--borrowed");
+      cardEl.classList.add("objective-card--primary");
+      if (badgeContainer) {
+        badgeContainer.className = "chip chip--saas chip-obj-primary";
+        badgeContainer.style.cssText = "background:var(--accent-purple-soft); color:var(--accent-purple); border-color:var(--accent-purple); font-size:10px; padding:1px 6px;";
+        badgeContainer.textContent = "🟣 Primary Topic";
+        badgeContainer.title = "Core learning objective taught in its primary syllabus topic unit (>=3 topic cluster)";
+      }
+    } else {
+      cardEl.classList.remove("objective-card--primary");
+      cardEl.classList.add("objective-card--borrowed");
+      if (badgeContainer) {
+        badgeContainer.className = "chip chip--saas chip--sky chip-obj-borrowed";
+        badgeContainer.style.cssText = "font-size:10px; padding:1px 6px;";
+        if (hasPriorPrimary) {
+          badgeContainer.textContent = `🔄 Reinforced (Main: Wk ${primWeeks[0]})`;
+          badgeContainer.title = `Reinforced borrowed objective (previously taught as Primary Topic in Week ${primWeeks[0]})`;
+        } else {
+          badgeContainer.textContent = "🔄 Borrowed";
+          badgeContainer.title = "Borrowed objective (used alongside non-primary topic or <3 from same topic)";
+        }
+      }
+    }
   }
 
   // Calculate total lessons
@@ -472,6 +734,7 @@ document.addEventListener("DOMContentLoaded", function() {
         card.classList.remove("week-card--target");
       }
     });
+    updateSmartHints();
   }
 
   if (targetWeekSelect) {
@@ -501,10 +764,12 @@ document.addEventListener("DOMContentLoaded", function() {
     unitSelect.innerHTML = '<option value="">-- No unit / All units --</option>';
 
     if (topicId) {
-      const matchingUnits = units.filter(u => u.topic_id === topicId);
+      const mainUnits = curriculum.units || [];
+      const mainObjectives = curriculum.objectives || [];
+      const matchingUnits = mainUnits.filter(u => u.topic_id === topicId);
       matchingUnits.forEach(u => {
-        const uObjs = objectives.filter(o => o.subtopic_id === u.id && o.is_available);
-        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        const uObjs = mainObjectives.filter(o => o.subtopic_id === u.id && o.is_available);
+        const unusedCount = uObjs.filter(o => !primaryWeeksByObjId.has(o.id)).length;
         const opt = document.createElement("option");
         opt.value = u.id;
         if (currentUnit === u.id) {
@@ -516,8 +781,8 @@ document.addEventListener("DOMContentLoaded", function() {
             opt.disabled = false;
             opt.textContent = `${u.title} (All planned in this plan)`;
           } else {
-            opt.disabled = true;
-            opt.textContent = `${u.title} (All planned in other weeks)`;
+            opt.disabled = false;
+            opt.textContent = `${u.title} (All planned · Available for reinforcement)`;
           }
         } else {
           opt.disabled = false;
@@ -528,47 +793,15 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // Update primary topic and unit dropdowns across all week cards
-  function updatePrimaryTopicAndUnitOptions() {
-    document.querySelectorAll(".week-card[data-is-instructional='true']").forEach(card => {
-      const weekId = card.dataset.weekId;
-      const topicSelect = document.getElementById("week_" + weekId + "_topic");
-      if (!topicSelect) return;
-
-      const currentTopicVal = topicSelect.value;
-      topicSelect.querySelectorAll("option").forEach(opt => {
-        const tId = opt.value;
-        if (!tId) return;
-        const t = topics.find(item => item.id === tId);
-        if (!t) return;
-
-        const tObjs = objectives.filter(o => o.topic_id === tId && o.is_available);
-        const unusedCount = tObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
-
-        if (unusedCount === 0) {
-          if (currentTopicVal === tId) {
-            opt.disabled = false;
-            opt.textContent = `${t.title} (All planned in this plan)`;
-          } else {
-            opt.disabled = true;
-            opt.textContent = `${t.title} (All planned in other weeks)`;
-          }
-        } else {
-          opt.disabled = false;
-          opt.textContent = `${t.title} (${unusedCount} unused)`;
-        }
-      });
-
-      populateWeekUnits(weekId, undefined);
-    });
-  }
-
   // Primary topic dropdown change on each week -> updates that week's unit dropdown
   document.querySelectorAll(".week-topic-select").forEach(select => {
     select.addEventListener("change", function() {
       const weekId = this.dataset.weekId;
       populateWeekUnits(weekId, "");
       updateCrossUnitBadgesForWeek(weekId);
+      scanCurrentPlanObjectives();
+      renderLibraryObjectives();
+      updateSmartHints();
       isDirty = true;
     });
   });
@@ -614,11 +847,13 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // Coverage Dynamic Recalculation
+  const mainObjectives = curriculum.objectives || [];
+  const mainTopics = curriculum.topics || [];
   const previouslyCoveredObjIds = new Set(
-    objectives.filter(o => o.previously_covered).map(o => o.id)
+    mainObjectives.filter(o => o.previously_covered).map(o => o.id)
   );
-  const totalSchemeObjectives = coverageData.total_objectives || objectives.length;
-  const totalSchemeTopics = coverageData.total_topics || topics.length;
+  const totalSchemeObjectives = coverageData.total_objectives || mainObjectives.length;
+  const totalSchemeTopics = coverageData.total_topics || mainTopics.length;
 
   function recalculateCoverage() {
     const currentSelectedObjIds = new Set();
@@ -643,8 +878,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Count topics covered
     let coveredTopicsCount = 0;
-    topics.forEach(t => {
-      const topicObjs = objectives.filter(o => o.topic_id === t.id);
+    mainTopics.forEach(t => {
+      const topicObjs = mainObjectives.filter(o => o.topic_id === t.id);
       const isCovered = topicObjs.some(o => projectedCovered.has(o.id));
       if (isCovered) coveredTopicsCount++;
     });
@@ -663,9 +898,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const topicsCovEl = document.getElementById("cov-stat-topics-covered");
     if (topicsCovEl) topicsCovEl.textContent = coveredTopicsCount;
 
-    const topicPctEl = document.getElementById("cov-stat-topic-percent");
-    if (topicPctEl) topicPctEl.textContent = topicPercent;
-
     const remainingEl = document.getElementById("cov-stat-remaining");
     if (remainingEl) remainingEl.textContent = remainingCount;
 
@@ -679,43 +911,43 @@ document.addEventListener("DOMContentLoaded", function() {
     if (legendCurr) legendCurr.textContent = currentCount;
   }
 
-  // Update Topic and Unit filter option labels in Curriculum Library
-  function updateFilterOptionLabels() {
-    if (topicFilter) {
-      topicFilter.querySelectorAll("option").forEach(opt => {
-        const tId = opt.value;
-        if (!tId) return;
-        const t = topics.find(item => item.id === tId);
-        if (!t) return;
-        const tObjs = objectives.filter(o => o.topic_id === tId && o.is_available);
-        const unusedCount = tObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
-        if (unusedCount === 0) {
-          opt.textContent = `${t.title} (All ${tObjs.length} planned · Reinforcement available)`;
-        } else {
-          opt.textContent = `${t.title} (${unusedCount} unused · ${tObjs.length} available)`;
-        }
-      });
-    }
+  // Cross-Subject Switcher Tabs Handling
+  document.querySelectorAll(".btn-cross-subject-tab").forEach(tabBtn => {
+    tabBtn.addEventListener("click", function() {
+      document.querySelectorAll(".btn-cross-subject-tab").forEach(b => b.classList.remove("cross-subject-tab--active"));
+      this.classList.add("cross-subject-tab--active");
+      activeSchemeId = this.dataset.schemeId;
 
-    if (unitFilter && topicFilter?.value) {
-      const selectedTopic = topicFilter.value;
-      unitFilter.querySelectorAll("option").forEach(opt => {
-        const uId = opt.value;
-        if (!uId) return;
-        const u = units.find(item => item.id === uId);
-        if (!u) return;
-        const uObjs = objectives.filter(o => o.subtopic_id === uId && o.is_available);
-        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
-        if (unusedCount === 0) {
-          opt.textContent = `${u.title} (All ${uObjs.length} planned)`;
-        } else {
-          opt.textContent = `${u.title} (${unusedCount} unused · ${uObjs.length} available)`;
-        }
-      });
-    }
+      populateTopicFilter();
+      populateUnitFilter();
+      renderLibraryObjectives();
+      announce(`Switched curriculum view to ${this.textContent.trim()}`);
+    });
+  });
+
+  // Populate Topic Filter options based on active scheme
+  function populateTopicFilter() {
+    if (!topicFilter) return;
+    const activeData = getActiveSchemeData();
+    const activeTopics = activeData.topics || [];
+    const activeObjs = activeData.objectives || [];
+
+    topicFilter.innerHTML = '<option value="">-- Choose a Topic to browse --</option>';
+    activeTopics.forEach(t => {
+      const tObjs = activeObjs.filter(o => o.topic_id === t.id && o.is_available);
+      const unusedCount = tObjs.filter(o => !primaryWeeksByObjId.has(o.id)).length;
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      if (unusedCount === 0) {
+        opt.textContent = `${t.title} (All ${tObjs.length} primary planned · Available for borrowing)`;
+      } else {
+        opt.textContent = `${t.title} (${unusedCount} unused · ${tObjs.length} total)`;
+      }
+      topicFilter.appendChild(opt);
+    });
   }
 
-  // Curriculum Library Filter Logic
+  // Populate Unit Filter options based on active scheme and selected topic
   function populateUnitFilter() {
     if (!topicFilter || !unitFilter) return;
     const selectedTopic = topicFilter.value;
@@ -723,22 +955,27 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (!selectedTopic) {
       unitFilter.disabled = true;
-      btnAddTopic.disabled = true;
-      btnAddUnit.disabled = true;
+      if (btnAddTopic) btnAddTopic.disabled = true;
+      if (btnAddUnit) btnAddUnit.disabled = true;
     } else {
       unitFilter.disabled = false;
-      btnAddTopic.disabled = false;
-      btnAddUnit.disabled = true;
-      const matchingUnits = units.filter(u => u.topic_id === selectedTopic && !u.is_fully_covered);
+      if (btnAddTopic) btnAddTopic.disabled = false;
+      if (btnAddUnit) btnAddUnit.disabled = true;
+
+      const activeData = getActiveSchemeData();
+      const activeUnits = activeData.units || [];
+      const activeObjs = activeData.objectives || [];
+      const matchingUnits = activeUnits.filter(u => u.topic_id === selectedTopic);
+
       matchingUnits.forEach(u => {
-        const uObjs = objectives.filter(o => o.subtopic_id === u.id && o.is_available);
-        const unusedCount = uObjs.filter(o => !currentlyPlannedObjIds.has(o.id)).length;
+        const uObjs = activeObjs.filter(o => o.subtopic_id === u.id && o.is_available);
+        const unusedCount = uObjs.filter(o => !primaryWeeksByObjId.has(o.id)).length;
         const opt = document.createElement("option");
         opt.value = u.id;
         if (unusedCount === 0) {
-          opt.textContent = `${u.title} (All ${uObjs.length} planned)`;
+          opt.textContent = `${u.title} (All ${uObjs.length} primary planned)`;
         } else {
-          opt.textContent = `${u.title} (${unusedCount} unused · ${uObjs.length} available)`;
+          opt.textContent = `${u.title} (${unusedCount} unused · ${uObjs.length} total)`;
         }
         unitFilter.appendChild(opt);
       });
@@ -751,7 +988,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
   if (unitFilter) {
     unitFilter.addEventListener("change", function() {
-      btnAddUnit.disabled = !this.value;
+      if (btnAddUnit) btnAddUnit.disabled = !this.value;
       renderLibraryObjectives();
     });
   }
@@ -768,8 +1005,10 @@ document.addEventListener("DOMContentLoaded", function() {
       return [];
     }
 
-    return objectives.filter(obj => {
-      // Must be available (not previously covered in previous semesters)
+    const activeData = getActiveSchemeData();
+    const activeObjs = activeData.objectives || [];
+
+    return activeObjs.filter(obj => {
       if (!obj.is_available) {
         return false;
       }
@@ -796,7 +1035,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (!selectedTopic && !query) {
       objContainer.innerHTML = `
         <div style="padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:13px;">
-          Select a Topic above to explore learning objectives.
+          Select a Topic above or use search to explore learning objectives.
         </div>`;
       if (btnToggleAll) btnToggleAll.disabled = true;
       updateSelectedCount();
@@ -819,7 +1058,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Group topic-level objectives vs unit objectives
     const topicLevel = filtered.filter(o => !o.subtopic_id);
-    const unitLevel = filtered.filter(o => !!o.subtopic_id);
+    const unitLevel = filtered.filter(o => Boolean(o.subtopic_id));
 
     if (topicLevel.length > 0 && unitLevel.length > 0) {
       const header1 = document.createElement("div");
@@ -843,23 +1082,46 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function appendObjectiveRow(obj) {
-    const plannedWeeks = currentlyPlannedObjectivesMap.get(obj.id);
-    const isPlannedInPlan = plannedWeeks && plannedWeeks.length > 0;
+    const isPrimaryInPlan = primaryWeeksByObjId.has(obj.id);
+    const isBorrowedInPlan = borrowedWeeksByObjId.has(obj.id);
+    const isPlannedAnywhere = isPrimaryInPlan || isBorrowedInPlan;
 
-    const row = document.createElement("label");
-    row.className = "objective-item-row" + (isPlannedInPlan ? " objective-item-row--in-plan" : "");
-    
-    let plannedPillHtml = "";
-    if (isPlannedInPlan) {
-      plannedPillHtml = `<span class="obj-planned-pill" title="Already added in this Work Plan (remains usable for spiral learning / reinforcement)">✓ Planned in Week ${plannedWeeks.join(", ")}</span>`;
+    let rowClass = "objective-item-row";
+    let statusPillHtml = "";
+
+    if (isPrimaryInPlan) {
+      // ONLY turns purple when used in its Primary Topic (>=3 topic cluster rule)
+      rowClass += " objective-item-row--in-plan";
+      const primWks = primaryWeeksByObjId.get(obj.id).join(", ");
+      const borWks = borrowedWeeksByObjId.get(obj.id);
+      let text = `✓ Main Topic (Wk ${primWks})`;
+      if (borWks && borWks.length > 0) {
+        text += ` · Reinforced in Wk ${borWks.join(", ")}`;
+      }
+      statusPillHtml = `<span class="obj-planned-pill" title="Taught as core Primary Topic — still borrowable in future weeks for spiral reinforcement">${text}</span>`;
+    } else if (isBorrowedInPlan) {
+      // Borrowed objective (stays sky blue, not purple)
+      rowClass += " objective-item-row--borrowed";
+      const borWks = borrowedWeeksByObjId.get(obj.id).join(", ");
+      statusPillHtml = `<span class="obj-borrowed-pill" title="Borrowed in Week ${borWks} — still available for primary topic unit teaching">🔄 Borrowed in Wk ${borWks}</span>`;
     }
 
+    const row = document.createElement("label");
+    row.className = rowClass;
+
+    const crossBadge = obj.is_cross_curricular
+      ? `<span class="chip chip--saas chip--amber" style="font-size:10px; padding:1px 5px;">Cross: ${escapeHtml(obj.scheme_subject || '')}</span>`
+      : "";
+
     row.innerHTML = `
-      <input type="checkbox" class="lib-obj-checkbox" value="${obj.id}" data-code="${obj.code}" data-text="${escapeHtml(obj.text)}" data-topic-id="${obj.topic_id || ''}" data-subtopic-id="${obj.subtopic_id || ''}" data-topic-title="${escapeHtml(obj.topic_title || '')}" data-subtopic-title="${escapeHtml(obj.subtopic_title || '')}">
+      <input type="checkbox" class="lib-obj-checkbox" value="${obj.id}" data-code="${obj.code}" data-text="${escapeHtml(obj.text)}" data-topic-id="${obj.topic_id || ''}" data-subtopic-id="${obj.subtopic_id || ''}" data-topic-title="${escapeHtml(obj.topic_title || '')}" data-subtopic-title="${escapeHtml(obj.subtopic_title || '')}" data-is-cross="${obj.is_cross_curricular ? 'true' : 'false'}" data-scheme-subject="${escapeHtml(obj.scheme_subject || '')}">
       <div style="flex:1;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
-          <strong style="color:${isPlannedInPlan ? 'var(--accent-purple)' : 'var(--accent-blue)'};">${obj.code}</strong>
-          ${plannedPillHtml}
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong style="color:${isPrimaryInPlan ? 'var(--accent-purple)' : (isBorrowedInPlan ? '#0284c7' : 'var(--accent-blue)')};">${obj.code}</strong>
+            ${crossBadge}
+          </div>
+          ${statusPillHtml}
         </div>
         <span style="display:block; margin-top:2px;">${obj.text}</span>
         ${obj.subtopic_title ? `<small style="color:var(--ink-soft); display:block; margin-top:2px;">Unit: ${obj.subtopic_title}</small>` : ''}
@@ -869,6 +1131,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function escapeHtml(text) {
+    if (!text) return "";
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
@@ -925,18 +1188,30 @@ document.addEventListener("DOMContentLoaded", function() {
       existingIds.add(obj.id);
       addedCount++;
 
+      const isCross = Boolean(obj.is_cross_curricular || (obj.is_cross === "true"));
+      const crossSubject = obj.scheme_subject || "";
+
       const card = document.createElement("div");
-      card.className = "selected-objective-card";
+      card.className = "selected-objective-card objective-card--borrowed";
       card.dataset.objId = obj.id;
       card.dataset.topicId = obj.topic_id || "";
       card.dataset.subtopicId = obj.subtopic_id || "";
 
+      const crossChip = isCross
+        ? `<span class="chip chip--saas chip--amber" style="font-size:10px; padding:1px 6px;">Cross: ${escapeHtml(crossSubject)}</span>`
+        : "";
+
       card.innerHTML = `
         <input type="hidden" name="week_${targetWeekId}_objectives" value="${obj.id}">
         <div style="flex:1;">
-          <strong style="color:var(--accent-blue);">${obj.code}</strong> — ${obj.text}
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <strong style="color:var(--accent-blue);">${obj.code}</strong>
+            <span class="chip chip--saas chip--sky chip-obj-borrowed" style="font-size:10px; padding:1px 6px;">🔄 Borrowed</span>
+            ${crossChip}
+          </div>
+          <span style="display:block; margin-top:2px;">${obj.text}</span>
           <div style="margin-top:4px; font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-            <span>[Source: ${obj.topic_title}${obj.subtopic_title ? ' · ' + obj.subtopic_title : ''}]</span>
+            <span>[Source: ${escapeHtml(obj.topic_title || '')}${obj.subtopic_title ? ' · ' + escapeHtml(obj.subtopic_title) : ''}]</span>
             <span class="cross-unit-badge" style="display:none;">Cross-unit</span>
           </div>
         </div>
@@ -951,8 +1226,6 @@ document.addEventListener("DOMContentLoaded", function() {
     // Refresh live in-plan tracking, library styling, topic/unit options, and coverage
     scanCurrentPlanObjectives();
     renderLibraryObjectives();
-    updatePrimaryTopicAndUnitOptions();
-    updateFilterOptionLabels();
     recalculateCoverage();
 
     announce(`Added ${addedCount} objective(s) to week.`);
@@ -980,6 +1253,8 @@ document.addEventListener("DOMContentLoaded", function() {
         subtopic_id: cb.dataset.subtopicId,
         topic_title: cb.dataset.topicTitle,
         subtopic_title: cb.dataset.subtopicTitle,
+        is_cross: cb.dataset.isCross,
+        scheme_subject: cb.dataset.schemeSubject,
       }));
       addObjectivesToTargetWeek(objs);
       selectedBoxes.forEach(cb => cb.checked = false);
@@ -991,13 +1266,14 @@ document.addEventListener("DOMContentLoaded", function() {
     btnAddTopic.addEventListener("click", function() {
       const topicId = topicFilter.value;
       if (!topicId) return;
-      // Prioritize unused objectives for batch add
-      const unusedTopicObjs = objectives.filter(o => o.topic_id === topicId && o.is_available && !currentlyPlannedObjIds.has(o.id));
+      const activeData = getActiveSchemeData();
+      const activeObjs = activeData.objectives || [];
+      const unusedTopicObjs = activeObjs.filter(o => o.topic_id === topicId && o.is_available && !primaryWeeksByObjId.has(o.id));
+      
       if (unusedTopicObjs.length > 0) {
         addObjectivesToTargetWeek(unusedTopicObjs);
       } else {
-        // If all are already planned, allow adding all available for reinforcement with feedback
-        const allAvailable = objectives.filter(o => o.topic_id === topicId && o.is_available);
+        const allAvailable = activeObjs.filter(o => o.topic_id === topicId && o.is_available);
         if (confirm("All objectives in this Topic are already planned in this Work Plan. Do you want to add them to this week for spiral reinforcement?")) {
           addObjectivesToTargetWeek(allAvailable);
         }
@@ -1009,12 +1285,14 @@ document.addEventListener("DOMContentLoaded", function() {
     btnAddUnit.addEventListener("click", function() {
       const unitId = unitFilter.value;
       if (!unitId) return;
-      // Prioritize unused objectives for batch add
-      const unusedUnitObjs = objectives.filter(o => o.subtopic_id === unitId && o.is_available && !currentlyPlannedObjIds.has(o.id));
+      const activeData = getActiveSchemeData();
+      const activeObjs = activeData.objectives || [];
+      const unusedUnitObjs = activeObjs.filter(o => o.subtopic_id === unitId && o.is_available && !primaryWeeksByObjId.has(o.id));
+      
       if (unusedUnitObjs.length > 0) {
         addObjectivesToTargetWeek(unusedUnitObjs);
       } else {
-        const allAvailable = objectives.filter(o => o.subtopic_id === unitId && o.is_available);
+        const allAvailable = activeObjs.filter(o => o.subtopic_id === unitId && o.is_available);
         if (confirm("All objectives in this Unit are already planned in this Work Plan. Do you want to add them to this week for spiral reinforcement?")) {
           addObjectivesToTargetWeek(allAvailable);
         }
@@ -1043,8 +1321,6 @@ document.addEventListener("DOMContentLoaded", function() {
       // Refresh live in-plan tracking, library styling, topic/unit options, and coverage
       scanCurrentPlanObjectives();
       renderLibraryObjectives();
-      updatePrimaryTopicAndUnitOptions();
-      updateFilterOptionLabels();
       recalculateCoverage();
 
       announce("Objective removed from week.");
@@ -1052,10 +1328,73 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
+  // Smart Hints display & interaction
+  function updateSmartHints() {
+    if (!smartHintsContainer) return;
+    const targetWeekId = targetWeekSelect?.value;
+    if (!targetWeekId) {
+      smartHintsContainer.style.display = "none";
+      return;
+    }
+
+    const topicSelect = document.getElementById("week_" + targetWeekId + "_topic");
+    const targetTopicId = topicSelect ? topicSelect.value : "";
+    if (!targetTopicId || !smartHints[targetTopicId] || smartHints[targetTopicId].length === 0) {
+      smartHintsContainer.style.display = "none";
+      return;
+    }
+
+    const hintList = smartHints[targetTopicId];
+    const firstHint = hintList[0];
+
+    const titleEl = document.getElementById("smart-hints-theme-title");
+    const descEl = document.getElementById("smart-hints-description");
+    const tagsEl = document.getElementById("smart-hints-tags");
+
+    if (titleEl) titleEl.textContent = firstHint.theme_label || "Related Cross-Subject Links";
+    if (descEl) descEl.textContent = firstHint.theme_description || `Recommended objectives from ${firstHint.companion_scheme_subject} to accompany this unit.`;
+
+    if (tagsEl) {
+      tagsEl.innerHTML = "";
+      firstHint.recommended_objectives.forEach(rec => {
+        const tag = document.createElement("div");
+        tag.className = "smart-hint-tag";
+        tag.title = rec.text;
+        tag.innerHTML = `
+          <div style="flex:1;">
+            <strong style="color:var(--accent-purple);">${rec.code}</strong>
+            <span style="color:var(--ink-soft); font-size:11px;"> · ${escapeHtml(rec.scheme_subject)}: ${escapeHtml(rec.text.substring(0, 50))}...</span>
+          </div>
+          <button type="button" class="button button--subtle button--small btn-borrow-hint" style="padding:2px 6px; font-size:10.5px; height:auto; min-height:auto;">+ Borrow</button>
+        `;
+
+        tag.querySelector(".btn-borrow-hint").addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          addObjectivesToTargetWeek([{
+            id: rec.id,
+            code: rec.code,
+            text: rec.text,
+            topic_id: "",
+            subtopic_id: "",
+            topic_title: rec.topic_title || rec.scheme_subject,
+            subtopic_title: "",
+            is_cross_curricular: true,
+            scheme_subject: rec.scheme_subject,
+          }]);
+        });
+
+        tagsEl.appendChild(tag);
+      });
+    }
+
+    smartHintsContainer.style.display = "block";
+  }
+
   // Initial startup scan and setup
   scanCurrentPlanObjectives();
-  updatePrimaryTopicAndUnitOptions();
-  updateFilterOptionLabels();
+  populateTopicFilter();
+  populateUnitFilter();
+  updateSmartHints();
 
 });
 </script>

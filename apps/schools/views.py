@@ -58,9 +58,23 @@ def _require_user_manager(request):
 def school_settings(request):
     if not request.membership.can_manage_school:
         raise PermissionDenied("Only a Head or Director can edit school settings.")
-    form = SchoolSettingsForm(request.POST or None, instance=request.school)
+    form = SchoolSettingsForm(request.POST or None, request.FILES or None, instance=request.school)
     if request.method == "POST" and form.is_valid():
         school = form.save(commit=False)
+        logo_file = form.cleaned_data.get("logo_file")
+        if logo_file:
+            import os
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+
+            ext = os.path.splitext(logo_file.name)[1].lower() or ".png"
+            filename = f"school_logos/school_{school.pk}{ext}"
+            # Delete old file if exists
+            if default_storage.exists(filename):
+                default_storage.delete(filename)
+            saved_path = default_storage.save(filename, ContentFile(logo_file.read()))
+            school.logo_url = default_storage.url(saved_path)
+
         school.onboarding_complete = True
         school.save()
         AuditLog.all_objects.create(
@@ -70,7 +84,7 @@ def school_settings(request):
             target_type="school",
             target_id=str(school.pk),
         )
-        messages.success(request, "School details saved.")
+        messages.success(request, "School details and logo saved.")
         return redirect("schools:settings")
     return render(request, "schools/settings.html", {"form": form})
 

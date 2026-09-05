@@ -21,9 +21,19 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--password", default="DemoPass!246")
+        parser.add_argument(
+            "--skip-curriculum",
+            action="store_true",
+            help="Skip seeding Cambridge curriculum learning objectives",
+        )
 
     def handle(self, *args, **options):
         password = options["password"]
+        skip_curriculum = options["skip_curriculum"]
+
+        if not skip_curriculum:
+            from django.core.management import call_command
+            call_command("seed_curriculum")
         director, _ = User.objects.get_or_create(
             email="director@demo.cambrify.local",
             defaults={"full_name": "Amina Director"},

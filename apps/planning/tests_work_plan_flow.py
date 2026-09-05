@@ -17,11 +17,18 @@ from apps.planning.forms import WorkPlanCreateForm
 from apps.planning.models import (
     PlanningTemplate,
     TemplateVersion,
+    WorkPlan,
     WorkPlanWeek,
     WorkPlanWeekObjective,
 )
 from apps.planning.pdf import render_work_plan
-from apps.planning.services import create_work_plan, save_work_plan
+from apps.planning.services import (
+    create_work_plan,
+    get_work_plan_reflection_stats,
+    save_work_plan,
+    transition_work_plan,
+    update_work_plan_weekly_reflections,
+)
 from apps.schools.models import (
     AcademicYear,
     CalendarWeek,
@@ -48,12 +55,18 @@ class WorkPlanFlowTests(TestCase):
         self.teacher = User.objects.create_user(
             "teacher1@example.com", "Password!123", full_name="Jane Doe"
         )
+        self.coordinator = User.objects.create_user(
+            "coordinator@example.com", "Password!123", full_name="Curriculum Coord"
+        )
         self.other_teacher = User.objects.create_user(
             "teacher2@example.com", "Password!123", full_name="John Smith"
         )
 
         self.membership = Membership.objects.create(
             school=self.school, user=self.teacher, role=Membership.Role.TEACHER
+        )
+        self.coordinator_membership = Membership.objects.create(
+            school=self.school, user=self.coordinator, role=Membership.Role.COORDINATOR
         )
         self.other_membership = Membership.objects.create(
             school=self.other_school, user=self.other_teacher, role=Membership.Role.TEACHER
@@ -395,6 +408,71 @@ class WorkPlanFlowTests(TestCase):
                 resources="Textbook A",
                 week_updates=updates,
             )
+            output = BytesIO()
+            render_work_plan(plan, output)
+            self.assertTrue(output.getvalue().startswith(b"%PDF"))
+
+    def test_approved_work_plan_weekly_reflections_and_met_objectives(self):
+        plan = self.create_test_plan()
+        with tenant_scope(self.school):
+            weeks = list(plan.weeks.order_by("sequence"))
+            updates = [
+                {
+                    "id": weeks[0].pk,
+                    "topic_id": self.topic1.pk,
+                    "subtopic_id": self.unit1.pk,
+                    "lessons_per_week": 3,
+                    "objectives": [self.obj_unit1.pk, self.obj_unit2.pk],
+                    "remarks": "",
+                },
+                {"id": weeks[1].pk, "lessons_per_week": 2, "objectives": []},
+                {"id": weeks[2].pk, "objectives": []},
+            ]
+            save_work_plan(
+                plan=plan,
+                actor=self.teacher,
+                revision=1,
+                resources="Textbook 1",
+                week_updates=updates,
+            )
+            # Submit and approve
+            plan = transition_work_plan(
+                plan=plan,
+                actor_membership=self.membership,
+                target_status=WorkPlan.Status.SUBMITTED,
+            )
+            plan = transition_work_plan(
+                plan=plan,
+                actor_membership=self.coordinator_membership,
+                target_status=WorkPlan.Status.APPROVED,
+            )
+            self.assertEqual(plan.status, WorkPlan.Status.APPROVED)
+
+            # Update Friday weekly reflection and met objectives
+            week_remarks = {str(weeks[0].pk): "Students completed algorithm exercises."}
+            met_objs = {str(self.obj_unit1.pk)}
+            update_work_plan_weekly_reflections(
+                plan=plan, actor=self.teacher, week_remarks=week_remarks, met_objective_ids=met_objs
+            )
+
+            # Verify week 1 remarks updated
+            weeks[0].refresh_from_db()
+            self.assertEqual(weeks[0].remarks, "Students completed algorithm exercises.")
+
+            # Verify objective 1 is marked met, objective 2 is not
+            sel1 = weeks[0].objective_selections.get(objective=self.obj_unit1)
+            sel2 = weeks[0].objective_selections.get(objective=self.obj_unit2)
+            self.assertTrue(sel1.is_met)
+            self.assertIsNotNone(sel1.met_at)
+            self.assertFalse(sel2.is_met)
+
+            # Check reflection stats
+            stats = get_work_plan_reflection_stats(plan)
+            self.assertEqual(stats["met_objectives_count"], 1)
+            self.assertEqual(stats["total_planned_objectives"], 2)
+            self.assertEqual(stats["met_coverage_percent"], 50.0)
+
+            # Check PDF generation renders with met objectives
             output = BytesIO()
             render_work_plan(plan, output)
             self.assertTrue(output.getvalue().startswith(b"%PDF"))

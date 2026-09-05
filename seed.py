@@ -59,6 +59,10 @@ for i in range(1, 5):
     )
     teachers.append((email, pwd))
 
+print("\nSeeding Cambridge Curriculum Frameworks and Learning Objectives...")
+from django.core.management import call_command
+call_command("seed_curriculum")
+
 print("\n===============================")
 print("SEED COMPLETED - LOGIN DETAILS:")
 print("===============================")

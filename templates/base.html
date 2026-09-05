@@ -71,6 +71,9 @@
           <a href="{% url 'planning:lesson_plan_list' %}" {% if request.resolver_match.namespace == 'planning' and 'lesson' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
             <span class="nav-icon">📝</span> Lesson Plans
           </a>
+          <a href="{% url 'curriculum:browser' %}" {% if request.resolver_match.namespace == 'curriculum' %}aria-current="page"{% endif %}>
+            <span class="nav-icon">📚</span> Curriculum Explorer
+          </a>
           {% if active_membership.can_manage_users %}
           <a href="{% url 'planning:review_queue' %}" {% if request.resolver_match.namespace == 'planning' and 'review' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
             <span class="nav-icon">✅</span> Review Queue
@@ -203,8 +206,126 @@
           }
         });
       }
+
+      /* ── In-Tab PDF Preview Modal Logic ── */
+      window.openPdfPreview = function(url, title) {
+        var modal = document.getElementById('pdf-preview-modal');
+        var iframe = document.getElementById('pdf-modal-iframe');
+        var titleEl = document.getElementById('pdf-modal-title');
+        var downloadBtn = document.getElementById('pdf-modal-download-btn');
+        if (!modal || !iframe) return;
+
+        if (titleEl) titleEl.textContent = title || 'Document Preview';
+        if (downloadBtn) {
+          var downloadUrl = url + (url.indexOf('?') === -1 ? '?download=1' : '&download=1');
+          downloadBtn.href = downloadUrl;
+          var safeName = (title || 'document').replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase() + '.pdf';
+          downloadBtn.setAttribute('download', safeName);
+        }
+
+        iframe.src = url;
+        modal.style.display = 'flex';
+        requestAnimationFrame(function() {
+          modal.classList.add('is-open');
+        });
+        document.body.style.overflow = 'hidden';
+      };
+
+      window.closePdfPreview = function() {
+        var modal = document.getElementById('pdf-preview-modal');
+        var iframe = document.getElementById('pdf-modal-iframe');
+        if (!modal) return;
+
+        modal.classList.remove('is-open');
+        setTimeout(function() {
+          modal.style.display = 'none';
+          if (iframe) iframe.src = 'about:blank';
+          document.body.style.overflow = '';
+        }, 150);
+      };
+
+      window.printCurrentPdf = function() {
+        var iframe = document.getElementById('pdf-modal-iframe');
+        if (!iframe || !iframe.src || iframe.src === 'about:blank') return;
+
+        // Try direct iframe window print
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            return;
+          }
+        } catch (err) {
+          console.warn('Iframe print access restricted, opening dedicated print tab', err);
+        }
+
+        // Reliable fallback for Chrome/Edge PDF plugin: open target in a focused new tab
+        var printWin = window.open(iframe.src, '_blank');
+        if (printWin) {
+          printWin.focus();
+        }
+      };
+
+      document.addEventListener('click', function(e) {
+        var trigger = e.target.closest('.btn-preview-pdf, a[href$="/pdf/"], a[href*="/pdf/?"]');
+        if (trigger) {
+          // If clicked specifically as a download or with download param, let it download normally
+          if (trigger.hasAttribute('download') || (trigger.href && trigger.href.indexOf('download=1') !== -1)) {
+            return;
+          }
+          e.preventDefault();
+          var url = trigger.dataset.pdfUrl || trigger.getAttribute('href');
+          var title = trigger.dataset.title || trigger.getAttribute('title') || trigger.innerText.trim() || 'Document Preview';
+          if (url && url !== '#') {
+            openPdfPreview(url, title);
+          }
+        }
+      });
+
+      var modalEl = document.getElementById('pdf-preview-modal');
+      if (modalEl) {
+        modalEl.addEventListener('click', function(e) {
+          if (e.target === modalEl) {
+            closePdfPreview();
+          }
+        });
+      }
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          var modal = document.getElementById('pdf-preview-modal');
+          if (modal && modal.classList.contains('is-open')) {
+            closePdfPreview();
+          }
+        }
+      });
     })();
   </script>
+
+  {# ═══ Global In-Tab PDF Preview Modal ═══ #}
+  <div id="pdf-preview-modal" class="pdf-modal-backdrop" style="display:none;" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="pdf-modal-dialog">
+      <div class="pdf-modal-header">
+        <div class="pdf-modal-title-group">
+          <span style="font-size:18px;">📄</span>
+          <h3 id="pdf-modal-title">Document Preview</h3>
+        </div>
+        <div class="pdf-modal-actions">
+          <button type="button" class="button button--secondary button--small" id="pdf-modal-print-btn" onclick="printCurrentPdf()" title="Print document">
+            🖨️ Print
+          </button>
+          <a href="#" class="button button--primary button--small" id="pdf-modal-download-btn" download title="Download PDF file">
+            ⬇️ Download
+          </a>
+          <button type="button" class="pdf-modal-close-btn" id="pdf-modal-close-btn" onclick="closePdfPreview()" aria-label="Close modal">✕</button>
+        </div>
+      </div>
+      <div class="pdf-modal-body">
+        <iframe id="pdf-modal-iframe" src="about:blank" title="PDF Preview Frame"></iframe>
+      </div>
+    </div>
+  </div>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>

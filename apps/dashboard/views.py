@@ -67,12 +67,30 @@ def home(request):
         ).count()
     )
 
+    under_review_statuses = [
+        WorkPlan.Status.SUBMITTED,
+        WorkPlan.Status.UNDER_REVIEW,
+        WorkPlan.Status.RESUBMITTED,
+    ]
+
+    if membership.role == Membership.Role.TEACHER:
+        under_review_work_plans = WorkPlan.objects.filter(
+            author=request.user,
+            status__in=under_review_statuses,
+        ).select_related("assignment__subject", "assignment__school_class", "term", "scheme").order_by("-updated_at")
+    else:
+        under_review_work_plans = WorkPlan.objects.filter(
+            school=request.school,
+            status__in=under_review_statuses,
+        ).select_related("assignment__subject", "assignment__school_class", "author", "term", "scheme").order_by("-updated_at")
+
     stats = {
         "assignments": active_assignments.count(),
         "draft_plans": draft_plans_count,
         "returned_plans": returned_plans_count,
         "approved_plans": approved_plans_count,
         "submitted_plans": submitted_plans_count,
+        "under_review_work_plans_count": under_review_work_plans.count(),
         "team_members": Membership.objects.filter(
             school=request.school, status=Membership.Status.ACTIVE
         ).count(),
@@ -82,7 +100,7 @@ def home(request):
     }
 
     planning_activity = (
-        WorkPlan.objects.select_related(
+        WorkPlan.objects.filter(school=request.school).select_related(
             "assignment__subject", "assignment__school_class", "author", "term"
         ).order_by("-updated_at")[:6]
         if not (membership.role == Membership.Role.TEACHER)
@@ -133,6 +151,7 @@ def home(request):
     context = {
         "stats": stats,
         "assignments": active_assignments[:6],
+        "under_review_work_plans": under_review_work_plans,
         "planning_activity": planning_activity,
         "setup": setup,
         "setup_urls": setup_urls,

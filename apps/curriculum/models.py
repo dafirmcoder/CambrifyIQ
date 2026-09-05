@@ -18,6 +18,12 @@ from apps.core.models import TimeStampedModel
 class CurriculumFramework(TimeStampedModel):
     """A published curriculum family, such as Cambridge Lower Secondary."""
 
+    class FrameworkCode(models.TextChoices):
+        PRIMARY = "CAMBRIDGE_PRIMARY", "Cambridge Primary"
+        LOWER_SECONDARY = "CAMBRIDGE_LOWER_SECONDARY", "Cambridge Lower Secondary"
+        IGCSE = "CAMBRIDGE_IGCSE", "Cambridge IGCSE"
+        AS_A_LEVEL = "CAMBRIDGE_AS_A_LEVEL", "Cambridge International AS & A Level"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=160)
@@ -42,6 +48,9 @@ class SchemeOfWork(TimeStampedModel):
     subject_name = models.CharField(max_length=120)
     year_group = models.CharField(max_length=40)
     title = models.CharField(max_length=200)
+    syllabus_years = models.CharField(
+        max_length=64, default="2023-2027", blank=True, help_text="e.g. 2023-2027"
+    )
     version = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     published_on = models.DateField(null=True, blank=True)
@@ -71,8 +80,14 @@ class SchemeOfWork(TimeStampedModel):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    @property
+    def display_name(self):
+        years_str = f" {self.syllabus_years}" if self.syllabus_years else ""
+        return f"{self.subject_code} {self.subject_name} {self.year_group}{years_str}"
+
     def __str__(self):
-        return f"{self.subject_code} {self.year_group} v{self.version}"
+        years_str = f" {self.syllabus_years}" if self.syllabus_years else ""
+        return f"{self.subject_code} {self.subject_name} ({self.year_group}){years_str}"
 
 
 class Topic(TimeStampedModel):

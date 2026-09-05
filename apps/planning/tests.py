@@ -14,7 +14,7 @@ from apps.planning.models import (
     TemplateVersion,
     WorkPlan,
 )
-from apps.planning.pdf import render_work_plan
+from apps.planning.pdf import render_lesson_plan, render_work_plan
 from apps.planning.services import (
     create_lesson_plan,
     create_work_plan,
@@ -41,6 +41,7 @@ class PlanningTemplateTests(TestCase):
     def setUp(self):
         self.alpha = School.objects.create(name="Alpha", slug="alpha", code="ALPHA")
         self.beta = School.objects.create(name="Beta", slug="beta", code="BETA")
+        PlanningTemplate.all_objects.all().delete()
         self.template = PlanningTemplate.all_objects.create(
             school=self.alpha,
             template_type=PlanningTemplate.TemplateType.LESSON_PLAN,
@@ -315,3 +316,6 @@ class WorkPlanServiceTests(TestCase):
                 target_status=LessonPlan.Status.SUBMITTED,
             )
         self.assertEqual(plan.status, LessonPlan.Status.SUBMITTED)
+        lp_output = BytesIO()
+        render_lesson_plan(plan, lp_output)
+        self.assertGreater(len(lp_output.getvalue()), 1000)

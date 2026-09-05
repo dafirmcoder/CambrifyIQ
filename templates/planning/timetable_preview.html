@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}Preview Weekly Timetable & Confirm Assignments · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell" style="max-width:1100px; margin:0 auto;">
+  <header class="page-header" style="margin-bottom:24px;">
+    <div>
+      <span class="role-chip">Automated Extraction Preview</span>
+      <h1 style="font-size:22px; margin:4px 0;">Review & Confirm Timetable Assignments</h1>
+      <p style="color:var(--ink-soft); font-size:14px; margin:0;">
+        We extracted <strong>{{ slots|length }} lesson slots</strong> from your uploaded timetable. Verify the detected subjects and target classes below, make any adjustments, and confirm to generate your teaching assignments.
+      </p>
+    </div>
+  </header>
+
+  <form method="post" action="{% url 'planning:timetable_confirm' timetable.id %}" id="timetable-confirm-form">
+    {% csrf_token %}
+
+    {# 1. Global Cambridge Subject Mapping Section #}
+    {% if subject_mappings %}
+      <section class="panel panel--purple" style="margin-bottom:24px;">
+        <header class="panel__header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">🎯</span>
+            <h2 style="font-size:15px; margin:0;">Detected Subjects & Class Mappings</h2>
+          </div>
+        </header>
+        <div class="panel__body">
+          <p style="font-size:13px; color:var(--ink-soft); margin:0 0 16px;">
+            Confirm the official Cambridge Subject code for each detected abbreviation and its assigned classes:
+          </p>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px;">
+            {% for mapping in subject_mappings %}
+              <div class="card" style="padding:14px; border:1.5px solid var(--accent-purple-soft); border-radius:var(--r-sm); background:var(--surface); box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <span class="badge" style="background:var(--accent-purple-soft); color:var(--accent-purple); font-weight:800; font-size:13px; padding:4px 8px;">
+                      Abbreviation: <strong>{{ mapping.raw_code }}</strong>
+                    </span>
+                    <div style="font-size:12px; color:var(--ink); margin-top:6px;">
+                      🏫 Classes: <strong style="color:var(--accent-blue); background:var(--surface-2); padding:2px 6px; border-radius:4px; border:1px solid var(--line);">{{ mapping.classes_taught_str }}</strong>
+                    </div>
+                  </div>
+                  <span class="badge" id="code_badge_{{ mapping.raw_code }}" style="background:var(--surface-2); border:1px solid var(--accent-blue); font-size:12px; font-weight:700; color:var(--accent-blue); padding:3px 7px;">
+                    Code: {{ mapping.cambridge_code }}
+                  </span>
+                </div>
+
+                <input type="hidden" name="subj_name_{{ mapping.raw_code }}" id="subj_name_{{ mapping.raw_code }}" value="{{ mapping.detected_name }}">
+                <input type="hidden" name="cam_code_{{ mapping.raw_code }}" id="cam_code_{{ mapping.raw_code }}" value="{{ mapping.cambridge_code }}">
+
+                <label style="display:block; font-size:11.5px; font-weight:700; margin-bottom:4px; color:var(--ink);">Match to Cambridge Level & Subject:</label>
+                <select name="subj_map_{{ mapping.raw_code }}" class="field select subject-map-select" data-raw="{{ mapping.raw_code }}" style="width:100%; font-size:12.5px; font-weight:600;">
+                  {% for fw_data in frameworks_data %}
+                    <optgroup label="🏛️ {{ fw_data.framework.name }}">
+                      {% for subj in fw_data.subjects %}
+                        <option value="{{ subj.subject_name }}" data-cam-code="{{ subj.subject_code }}" {% if mapping.cambridge_code == subj.subject_code %}selected{% elif not mapping.cambridge_code and mapping.detected_name|lower == subj.subject_name|lower %}selected{% endif %}>
+                          {{ subj.subject_name }} (Code: {{ subj.subject_code }})
+                        </option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
+    {# 2. Editable Schedule Slots Table #}
+    <section class="panel panel--blue" style="margin-bottom:24px;">
+      <header class="panel__header">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">📅</span>
+            <h2 style="font-size:15px; margin:0;">Weekly Lesson Schedule Slots (<span id="active-slots-count">{{ slots|length }}</span>)</h2>
+          </div>
+          <button type="button" class="button button--secondary button--small" id="btn-add-slot-row">
+            + Add Another Slot
+          </button>
+        </div>
+      </header>
+
+      <div class="panel__body" style="padding:0; overflow-x:auto;">
+        <input type="hidden" name="slot_count" id="slot_count" value="{{ slots|length }}">
+
+        <table style="width:100%; border-collapse:collapse; font-size:12.5px; text-align:left;" id="slots-table">
+          <thead>
+            <tr style="background:var(--surface-2); border-bottom:1.5px solid var(--line); color:var(--ink-soft); font-weight:700; font-size:11.5px; text-transform:uppercase;">
+              <th style="padding:10px 12px;">Day</th>
+              <th style="padding:10px 12px;">Time Range</th>
+              <th style="padding:10px 12px;">Period</th>
+              <th style="padding:10px 12px;">Class / Grade</th>
+              <th style="padding:10px 12px;">Subject Name</th>
+              <th style="padding:10px 12px; text-align:center;">Cambridge Code</th>
+              <th style="padding:10px 12px;">Room / Group</th>
+              <th style="padding:10px 12px; text-align:center;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="slots-tbody">
+            {% for slot in slots %}
+              <tr class="slot-row" id="slot-row-{{ forloop.counter0 }}" style="border-bottom:1px solid var(--line);">
+                <input type="hidden" name="slot_{{ forloop.counter0 }}_deleted" id="slot_{{ forloop.counter0 }}_deleted" value="0">
+                <input type="hidden" name="slot_{{ forloop.counter0 }}_year_group" value="{{ slot.year_group }}">
+                <input type="hidden" name="slot_{{ forloop.counter0 }}_subject_raw" value="{{ slot.subject_raw }}">
+
+                <td style="padding:8px 10px;">
+                  <select name="slot_{{ forloop.counter0 }}_day" class="field select" style="padding:4px 8px; font-size:12px; min-width:110px;">
+                    <option value="0" {% if slot.day_of_week == 0 %}selected{% endif %}>Monday</option>
+                    <option value="1" {% if slot.day_of_week == 1 %}selected{% endif %}>Tuesday</option>
+                    <option value="2" {% if slot.day_of_week == 2 %}selected{% endif %}>Wednesday</option>
+                    <option value="3" {% if slot.day_of_week == 3 %}selected{% endif %}>Thursday</option>
+                    <option value="4" {% if slot.day_of_week == 4 %}selected{% endif %}>Friday</option>
+                    <option value="5" {% if slot.day_of_week == 5 %}selected{% endif %}>Saturday</option>
+                    <option value="6" {% if slot.day_of_week == 6 %}selected{% endif %}>Sunday</option>
+                  </select>
+                </td>
+
+                <td style="padding:8px 10px;">
+                  <div style="display:flex; align-items:center; gap:4px;">
+                    <input type="time" name="slot_{{ forloop.counter0 }}_start" value="{{ slot.start_time }}" class="field" style="padding:4px 6px; font-size:12px; width:85px;">
+                    <span>–</span>
+                    <input type="time" name="slot_{{ forloop.counter0 }}_end" value="{{ slot.end_time }}" class="field" style="padding:4px 6px; font-size:12px; width:85px;">
+                  </div>
+                </td>
+
+                <td style="padding:8px 10px;">
+                  <input type="text" name="slot_{{ forloop.counter0 }}_period" value="{{ slot.period_label }}" class="field" style="padding:4px 8px; font-size:12px; width:85px;" placeholder="Period 1">
+                </td>
+
+                <td style="padding:8px 10px;">
+                  <input type="text" name="slot_{{ forloop.counter0 }}_class" value="{{ slot.class_name }}" class="field" style="padding:4px 8px; font-size:12px; font-weight:700; width:120px;" placeholder="Grade 7A">
+                </td>
+
+                <td style="padding:8px 10px;">
+                  <input type="text" name="slot_{{ forloop.counter0 }}_subject_name" value="{{ slot.subject_name }}" class="field" style="padding:4px 8px; font-size:12px; color:var(--accent-blue); font-weight:700; width:160px;" placeholder="Computing">
+                </td>
+
+                <td style="padding:8px 10px; text-align:center;">
+                  <input type="text" name="slot_{{ forloop.counter0 }}_cam_code" value="{{ slot.cambridge_code }}" class="field" style="padding:4px 8px; font-size:12px; font-weight:700; width:80px; text-align:center;" placeholder="0478">
+                </td>
+
+                <td style="padding:8px 10px;">
+                  <input type="text" name="slot_{{ forloop.counter0 }}_room" value="{{ slot.room }}" class="field" style="padding:4px 8px; font-size:12px; width:80px;" placeholder="COMP">
+                </td>
+
+                <td style="padding:8px 10px; text-align:center;">
+                  <button type="button" class="remove-btn btn-delete-slot" data-index="{{ forloop.counter0 }}" title="Remove this schedule slot">✕</button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="8" style="padding:24px; text-align:center; color:var(--ink-soft);">
+                  No slots detected. Click "+ Add Another Slot" above to manually add your schedule slots.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {# Action Buttons #}
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:40px;">
+      <a href="{% url 'planning:timetable_upload' %}" class="button button--subtle">
+        ← Upload a Different File
+      </a>
+      <button type="submit" class="button button--primary button--large" id="btn-confirm-assignments">
+        ✓ Confirm & Generate Teaching Assignments
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const tbody = document.getElementById("slots-tbody");
+  const btnAdd = document.getElementById("btn-add-slot-row");
+  const slotCountInput = document.getElementById("slot_count");
+  const activeSlotsCount = document.getElementById("active-slots-count");
+
+  // Sync Subject Mapping select with hidden inputs and slots table
+  document.querySelectorAll(".subject-map-select").forEach(function(sel) {
+    sel.addEventListener("change", function() {
+      const raw = this.getAttribute("data-raw");
+      const opt = this.options[this.selectedIndex];
+      const subjName = opt ? opt.value : "";
+      const camCode = opt ? (opt.getAttribute("data-cam-code") || "") : "";
+
+      const subjNameInput = document.getElementById("subj_name_" + raw);
+      const camCodeInput = document.getElementById("cam_code_" + raw);
+      const codeBadge = document.getElementById("code_badge_" + raw);
+
+      if (subjNameInput) subjNameInput.value = subjName;
+      if (camCodeInput) camCodeInput.value = camCode;
+      if (codeBadge) codeBadge.textContent = "Code: " + camCode;
+
+      // Update matching slot rows
+      document.querySelectorAll(".slot-row").forEach(function(row) {
+        const rawInput = row.querySelector("input[name*='_subject_raw']");
+        const nameInput = row.querySelector("input[name*='_subject_name']");
+        const camInput = row.querySelector("input[name*='_cam_code']");
+        if (rawInput && rawInput.value.toUpperCase() === raw.toUpperCase() && opt) {
+          if (nameInput) nameInput.value = subjName;
+          if (camInput) camInput.value = camCode;
+        }
+      });
+    });
+  });
+
+  // Delete row handler
+  tbody.addEventListener("click", function(e) {
+    if (e.target && e.target.classList.contains("btn-delete-slot")) {
+      const idx = e.target.getAttribute("data-index");
+      const delInput = document.getElementById("slot_" + idx + "_deleted");
+      const row = document.getElementById("slot-row-" + idx);
+      if (delInput && row) {
+        delInput.value = "1";
+        row.style.display = "none";
+        updateActiveCount();
+      }
+    }
+  });
+
+  function updateActiveCount() {
+    let count = 0;
+    document.querySelectorAll(".slot-row").forEach(function(row) {
+      if (row.style.display !== "none") count++;
+    });
+    if (activeSlotsCount) activeSlotsCount.textContent = count;
+  }
+
+  // Add new row handler
+  if (btnAdd) {
+    btnAdd.addEventListener("click", function() {
+      let currentCount = parseInt(slotCountInput.value) || 0;
+      const newIdx = currentCount;
+      slotCountInput.value = currentCount + 1;
+
+      const tr = document.createElement("tr");
+      tr.className = "slot-row";
+      tr.id = "slot-row-" + newIdx;
+      tr.style.borderBottom = "1px solid var(--line)";
+      tr.innerHTML = `
+        <input type="hidden" name="slot_${newIdx}_deleted" id="slot_${newIdx}_deleted" value="0">
+        <input type="hidden" name="slot_${newIdx}_year_group" value="Stage 7">
+        <input type="hidden" name="slot_${newIdx}_subject_raw" value="SUBJ">
+
+        <td style="padding:8px 10px;">
+          <select name="slot_${newIdx}_day" class="field select" style="padding:4px 8px; font-size:12px; min-width:110px;">
+            <option value="0">Monday</option>
+            <option value="1">Tuesday</option>
+            <option value="2">Wednesday</option>
+            <option value="3">Thursday</option>
+            <option value="4">Friday</option>
+            <option value="5">Saturday</option>
+            <option value="6">Sunday</option>
+          </select>
+        </td>
+        <td style="padding:8px 10px;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <input type="time" name="slot_${newIdx}_start" value="08:00" class="field" style="padding:4px 6px; font-size:12px; width:85px;">
+            <span>–</span>
+            <input type="time" name="slot_${newIdx}_end" value="08:45" class="field" style="padding:4px 6px; font-size:12px; width:85px;">
+          </div>
+        </td>
+        <td style="padding:8px 10px;">
+          <input type="text" name="slot_${newIdx}_period" value="Period ${newIdx + 1}" class="field" style="padding:4px 8px; font-size:12px; width:85px;">
+        </td>
+        <td style="padding:8px 10px;">
+          <input type="text" name="slot_${newIdx}_class" value="Grade 7A" class="field" style="padding:4px 8px; font-size:12px; font-weight:700; width:120px;">
+        </td>
+        <td style="padding:8px 10px;">
+          <input type="text" name="slot_${newIdx}_subject_name" value="Computing" class="field" style="padding:4px 8px; font-size:12px; color:var(--accent-blue); font-weight:700; width:160px;">
+        </td>
+        <td style="padding:8px 10px; text-align:center;">
+          <input type="text" name="slot_${newIdx}_cam_code" value="0860" class="field" style="padding:4px 8px; font-size:12px; font-weight:700; width:80px; text-align:center;">
+        </td>
+        <td style="padding:8px 10px;">
+          <input type="text" name="slot_${newIdx}_room" value="" class="field" style="padding:4px 8px; font-size:12px; width:80px;" placeholder="Room">
+        </td>
+        <td style="padding:8px 10px; text-align:center;">
+          <button type="button" class="remove-btn btn-delete-slot" data-index="${newIdx}" title="Remove this schedule slot">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      updateActiveCount();
+    });
+  }
+});
+</script>
+{% endblock %}

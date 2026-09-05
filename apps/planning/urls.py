@@ -23,9 +23,10 @@ urlpatterns = [
     path("lesson-plans/<uuid:plan_id>/pdf/", views.lesson_plan_pdf, name="lesson_plan_pdf"),
     path("review/", views.review_queue, name="review_queue"),
     path("review/work-plans/<uuid:plan_id>/", views.review_work_plan, name="review_work_plan"),
-    path(
-        "review/lesson-plans/<uuid:plan_id>/",
-        views.review_lesson_plan,
-        name="review_lesson_plan",
-    ),
+    path("review/lesson-plans/<uuid:plan_id>/", views.review_lesson_plan, name="review_lesson_plan"),
+    path("timetables/upload/", views.timetable_upload, name="timetable_upload"),
+    path("timetables/<uuid:timetable_id>/preview/", views.timetable_preview, name="timetable_preview"),
+    path("timetables/<uuid:timetable_id>/confirm/", views.timetable_confirm, name="timetable_confirm"),
+    path("timetables/my-schedule/", views.my_timetable, name="my_timetable"),
+    path("api/timetable-slot-lookup/", views.api_timetable_slot_lookup, name="api_timetable_slot_lookup"),
 ]

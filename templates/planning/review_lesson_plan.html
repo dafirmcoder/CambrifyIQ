@@ -1,62 +1,162 @@
 {% extends "base.html" %}
-{% block title %}Review Lesson Plan A {{ plan.assignment.subject.name }}{% endblock %}
+{% block title %}Review Lesson Plan · {{ plan.assignment.subject.name }}{% endblock %}
 {% block content %}
-<div class="page-shell" style="display: grid; grid-template-columns: 3fr 1fr; gap: 2rem;">
+<div class="page-shell" style="display: grid; grid-template-columns: 2.6fr 1.1fr; gap: 24px; align-items: start;">
   <div>
-    <header class="page-header">
+    <header class="page-header" style="margin-bottom:20px;">
       <div>
-        <span class="role-chip">{{ plan.get_status_display }}</span>
-        <h1>{{ plan.assignment.subject.name }} A {{ plan.assignment.school_class.name }}</h1>
-        <p>Teacher: {{ plan.author.get_full_name|default:plan.author.username }}</p>
-        <p>Date: {{ plan.lesson_date|date:"l, d F Y" }}</p>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          {% if plan.status == "approved" %}
+            <span class="chip chip--approved">✓ Approved</span>
+          {% elif plan.status == "under_review" %}
+            <span class="chip chip--submitted">Under Review</span>
+          {% elif plan.status == "submitted" or plan.status == "resubmitted" %}
+            <span class="chip chip--submitted">{{ plan.get_status_display }}</span>
+          {% elif plan.status == "returned" %}
+            <span class="chip chip--returned">Returned for revision</span>
+          {% else %}
+            <span class="chip chip--draft">{{ plan.get_status_display }}</span>
+          {% endif %}
+
+          {% if plan.originating_work_plan_week %}
+            <span class="chip chip--approved" style="font-size:11.5px;">
+              Week {{ plan.originating_work_plan_week.sequence }}{% if plan.originating_work_plan_week.month_label %} ({{ plan.originating_work_plan_week.month_label }}){% endif %}
+            </span>
+          {% endif %}
+        </div>
+        <h1 style="font-size:22px; margin:0 0 4px;">{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</h1>
+        <p style="color:var(--ink-soft); font-size:13.5px; margin:0;">
+          Teacher: <strong>{{ plan.author.get_full_name|default:plan.author.username }}</strong> · {{ plan.lesson_date|date:"l, j F Y" }} · {{ plan.term.name }} · Revision {{ plan.revision }}
+        </p>
       </div>
-      <div>
-        <a class="button button--secondary" href="{% url 'planning:lesson_plan_pdf' plan.pk %}">Preview PDF</a>
-        <a class="button button--secondary" href="{% url 'planning:review_queue' %}">Back to Queue</a>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button type="button" class="button button--secondary btn-preview-pdf" data-pdf-url="{% url 'planning:lesson_plan_pdf' plan.pk %}" data-title="Review Lesson Plan — {{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }} ({{ plan.lesson_date|date:'j M Y' }})">
+          📄 Preview PDF
+        </button>
+        <a class="button button--ghost" href="{% url 'planning:review_queue' %}">Review Queue</a>
       </div>
     </header>
 
-    <section class="panel">
-      <header class="panel__header"><h2>Lesson Plan Details</h2></header>
-      <div class="panel__body">
-        <fieldset disabled>
-          <p><label>Topic</label><select><option>{{ plan.topic.title|default:"-" }}</option></select></p>
-          <p><label>Subtopic</label><select><option>{{ plan.subtopic.title|default:"-" }}</option></select></p>
-          <div style="display: flex; gap: 1rem;">
-            <p><label>Boys Attendance</label><input type="number" value="{{ plan.boys_attendance }}" disabled></p>
-            <p><label>Girls Attendance</label><input type="number" value="{{ plan.girls_attendance }}" disabled></p>
-          </div>
-          
-          <fieldset><legend>Learning objectives</legend>
-            {% for item in plan.objective_selections.all %}
-              <label><input type="checkbox" checked disabled> {{ item.code_snapshot }} ?" {{ item.text_snapshot }}</label><br>
-            {% empty %}
-              <p>No learning objectives selected.</p>
-            {% endfor %}
-          </fieldset>
-          
-          <p><label>Main Teaching Activity</label><textarea rows="6" disabled>{{ plan.main_teaching_activity }}</textarea></p>
-          <p><label>Assessment Ideas</label><textarea rows="4" disabled>{{ plan.assessment_ideas }}</textarea></p>
-          <p><label>Resources</label><input type="text" value="{{ plan.resources|join:', ' }}" disabled></p>
-          <p><label>Notes / Remarks</label><textarea rows="3" disabled>{{ plan.notes_remarks }}</textarea></p>
-        </fieldset>
+    {# 1. Meta Overview #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>1. Lesson & Class Overview</h2>
+      </header>
+      <div class="panel__body" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; font-size:13.5px;">
+        <div>
+          <span style="font-size:11.5px; color:var(--ink-soft); display:block; font-weight:700;">Topic / Unit</span>
+          <strong>{{ plan.topic.title }}</strong>
+        </div>
+        <div>
+          <span style="font-size:11.5px; color:var(--ink-soft); display:block; font-weight:700;">Subtopic / Unit</span>
+          <strong>{{ plan.subtopic.title|default:"None / All units" }}</strong>
+        </div>
+        <div>
+          <span style="font-size:11.5px; color:var(--ink-soft); display:block; font-weight:700;">Lesson Date</span>
+          <strong>{{ plan.lesson_date|date:"l, j F Y" }}</strong>
+        </div>
+        <div>
+          <span style="font-size:11.5px; color:var(--ink-soft); display:block; font-weight:700;">Attendance</span>
+          <strong>Total {{ plan.total_attendance }}</strong> (Boys: {{ plan.boys_attendance }}, Girls: {{ plan.girls_attendance }})
+        </div>
       </div>
     </section>
+
+    {# 2. Resources #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>2. Resources Checklist</h2>
+      </header>
+      <div class="panel__body">
+        {% if plan.resources %}
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            {% for r in plan.resources %}
+              <span class="chip chip--approved">✓ {{ r }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <span style="color:var(--ink-soft); font-style:italic;">No resources checked.</span>
+        {% endif %}
+      </div>
+    </section>
+
+    {# 3. Learning Objectives #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>3. Learning Objectives</h2>
+      </header>
+      <div class="panel__body">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0 0 10px;">
+          <strong>By the end of this lesson, learners should be able to:</strong>
+        </p>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          {% for item in plan.objective_selections.all %}
+            <div style="padding:10px 14px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-sm); font-size:13px;">
+              <strong style="color:var(--accent-blue);">{{ item.code_snapshot }}</strong> — {{ item.text_snapshot }}
+            </div>
+          {% empty %}
+            <p style="color:var(--ink-soft); font-style:italic;">No learning objectives selected.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    {# 4. Main Teaching Activity #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>4. Main Teaching Activity</h2>
+      </header>
+      <div class="panel__body">
+        <div style="font-size:13.5px; line-height:1.6; white-space:pre-wrap; background:var(--surface-2); padding:12px 16px; border-radius:var(--r-sm); border:1px solid var(--line);">
+          {{ plan.main_teaching_activity|default:"No teaching activity provided." }}
+        </div>
+      </div>
+    </section>
+
+    {# 5. Assessment Ideas #}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>5. Assessment Ideas</h2>
+      </header>
+      <div class="panel__body">
+        <div style="font-size:13.5px; line-height:1.6; white-space:pre-wrap; background:var(--surface-2); padding:12px 16px; border-radius:var(--r-sm); border:1px solid var(--line);">
+          {{ plan.assessment_ideas|default:"No assessment ideas provided." }}
+        </div>
+      </div>
+    </section>
+
+    {# 6. Notes / Remarks #}
+    {% if plan.notes_remarks %}
+    <section class="panel" style="margin-bottom:20px;">
+      <header class="panel__header">
+        <h2>6. Notes / Remarks</h2>
+      </header>
+      <div class="panel__body">
+        <div style="font-size:13.5px; line-height:1.6; white-space:pre-wrap; background:var(--surface-2); padding:12px 16px; border-radius:var(--r-sm); border:1px solid var(--line);">
+          {{ plan.notes_remarks }}
+        </div>
+      </div>
+    </section>
+    {% endif %}
   </div>
   
   <div>
-    <section class="panel" style="position: sticky; top: 2rem;">
+    <section class="panel panel--blue" style="position: sticky; top: 24px;">
       <header class="panel__header"><h2>Leader Review</h2></header>
       <div class="panel__body">
         <form method="post">
           {% csrf_token %}
-          <p>
-            <label for="comment">Review Comment</label>
-            <textarea id="comment" name="comment" rows="6" placeholder="Required if returning to teacher..."></textarea>
-          </p>
-          <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-            <button class="button button--primary" type="submit" name="action" value="approve">Approve</button>
-            <button class="button button--danger" type="submit" name="action" value="return">Return</button>
+          <div style="margin-bottom:14px;">
+            <label for="comment" style="display:block; font-size:12.5px; font-weight:700; margin-bottom:6px;">Review Comment</label>
+            <textarea id="comment" name="comment" rows="5" placeholder="Required if returning to teacher..." style="width:100%;"></textarea>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="button button--primary" type="submit" name="action" value="approve" style="width:100%;">
+              ✓ Approve Lesson Plan
+            </button>
+            <button class="button button--danger" type="submit" name="action" value="return" style="width:100%;">
+              ↩ Return to Teacher
+            </button>
           </div>
         </form>
       </div>

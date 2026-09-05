@@ -1,54 +1,480 @@
 {% extends "base.html" %}
-{% block title %}Lesson Plans · {{ active_school.name }}{% endblock %}
+{% block title %}Weekly Timetable & Lesson Plans · {{ active_school.name }}{% endblock %}
 {% block content %}
-<div class="page-shell">
-  <header class="page-header">
-    <div>
-      <span class="role-chip">Planning</span>
-      <h1>Lesson Plans</h1>
-      <p>Create a lesson from an active assignment, term and curriculum topic, optionally carrying forward a Work Plan week.</p>
+<div class="page-shell" style="max-width:1250px; margin:0 auto;">
+  
+  {# 1. Header & Quick Actions #}
+  <header class="page-header" style="margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; flex-wrap:wrap; gap:16px;">
+      <div>
+        <span class="role-chip">Teaching Overview & Timetable Delivery</span>
+        <h1 style="font-size:24px; margin:4px 0 6px;">Weekly Schedule & Lesson Plans</h1>
+        <p style="color:var(--ink-soft); font-size:13.5px; margin:0;">
+          Track your prospective lesson planning, post-lesson attendance, and weekly syllabus delivery.
+        </p>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button type="button" class="button button--primary" id="btn-open-create-modal">
+          + New Lesson Plan
+        </button>
+        <a href="{% url 'planning:my_timetable' %}" class="button button--subtle">
+          🗓 Full Timetable
+        </a>
+        <a href="{% url 'planning:timetable_upload' %}" class="button button--secondary">
+          📅 Upload Timetable PDF
+        </a>
+      </div>
     </div>
   </header>
 
-  <section class="panel">
-    <header class="panel__header"><h2>New Lesson Plan</h2></header>
-    <div class="panel__body">
-      <form method="post">{% csrf_token %}
-        {{ form.non_field_errors }}
-        {% for field in form %}
-          <p>
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {{ field.errors }}
-          </p>
-        {% endfor %}
-        <button class="button button--primary" type="submit">Create draft</button>
-      </form>
+  {# 2. Semester Progress & Teacher Compliance Rating Dashboard #}
+  <section class="panel panel--purple" style="margin-bottom:24px; background:linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);">
+    <div class="panel__body" style="padding:18px 22px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; align-items:center;">
+        
+        {# Compliance Rating Badge #}
+        <div style="border-right:1px solid var(--line); padding-right:16px;">
+          <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;">
+            Teacher Compliance Rating
+          </div>
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="font-size:32px; font-weight:900; color:{% if compliance_percent >= 90 %}#059669{% elif compliance_percent >= 75 %}#2563EB{% elif compliance_percent >= 60 %}#D97706{% else %}#DC2626{% endif %};">
+              {{ compliance_percent }}%
+            </span>
+            <span class="badge" style="font-weight:700; font-size:11.5px; background:{% if compliance_percent >= 90 %}#ECFDF5; color:#065F46{% elif compliance_percent >= 75 %}#EFF6FF; color:#1E40AF{% elif compliance_percent >= 60 %}#FFFBEB; color:#92400E{% else %}#FEF2F2; color:#991B1B{% endif %};">
+              {% if compliance_percent >= 90 %}🌟 Fully Compliant{% elif compliance_percent >= 75 %}👍 Good Standing{% elif compliance_percent >= 60 %}⚠️ Needs Attention{% else %}🚨 Non-Compliant{% endif %}
+            </span>
+          </div>
+          <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+            Based on on-time lesson plan delivery
+          </div>
+        </div>
+
+        {# Metric 1: Planned Slots #}
+        <div>
+          <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;">
+            Week {{ selected_week_num }} Planned Coverage
+          </div>
+          <div style="font-size:24px; font-weight:800; color:var(--ink);">
+            {{ planned_week_slots }} <span style="font-size:14px; color:var(--ink-soft); font-weight:500;">/ {{ total_week_slots }} lessons</span>
+          </div>
+          <div style="width:100%; background:var(--surface-3); height:6px; border-radius:3px; margin-top:6px; overflow:hidden;">
+            <div style="background:var(--accent-blue); height:100%; width:{% if total_week_slots %}{% widthratio planned_week_slots total_week_slots 100 %}{% else %}0{% endif %}%;"></div>
+          </div>
+        </div>
+
+        {# Metric 2: Awaiting Post-Lesson Remarks #}
+        <div>
+          <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;">
+            Awaiting Remarks & Attendance
+          </div>
+          <div style="font-size:24px; font-weight:800; color:{% if awaiting_remarks_count %}#7C3AED{% else %}var(--ink-soft){% endif %};">
+            {{ awaiting_remarks_count }}
+          </div>
+          <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+            Completed lessons needing final reflection
+          </div>
+        </div>
+
+        {# Metric 3: Missed / Unplanned Lessons #}
+        <div>
+          <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;">
+            Missed / Unplanned Lessons
+          </div>
+          <div style="font-size:24px; font-weight:800; color:{% if missed_week_slots %}#DC2626{% else %}#059669{% endif %};">
+            {% if missed_week_slots %}🔴 {{ missed_week_slots }}{% else %}✓ 0{% endif %}
+          </div>
+          <div style="font-size:11.5px; color:{% if missed_week_slots %}#DC2626{% else %}var(--ink-soft){% endif %}; margin-top:4px;">
+            {% if missed_week_slots %}Past lessons with no advance plan{% else %}All past lessons planned on time{% endif %}
+          </div>
+        </div>
+
+      </div>
     </div>
   </section>
 
-  <section class="panel">
-    <header class="panel__header"><h2>My lesson plans</h2></header>
-    {% if plans %}
-      <div class="panel__body">
-        <ul class="assignment-list">
-          {% for plan in plans %}
-            <li>
-              <span class="assignment-code">{{ plan.get_status_display }}</span>
-              <div>
-                <strong><a href="{% url 'planning:lesson_plan_detail' plan.pk %}">{{ plan.assignment.subject.name }} · {{ plan.assignment.school_class.name }}</a></strong>
-                <small>{{ plan.lesson_date|date:"j M Y" }} · {{ plan.topic.title }} · updated {{ plan.updated_at|date:"j M Y, H:i" }}</small>
-              </div>
-            </li>
+  {# 3. Week Selector Tab Bar #}
+  {% if term_weeks %}
+    <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; margin-bottom:16px; scrollbar-width:thin;">
+      {% for tw in term_weeks %}
+        <a href="?week={{ tw.number }}" 
+           class="badge" 
+           style="padding:8px 14px; font-size:12.5px; font-weight:700; text-decoration:none; border-radius:20px; white-space:nowrap; transition:all 0.15s ease;
+                  {% if tw.number == selected_week_num %}
+                    background:var(--accent-blue); color:#fff; box-shadow:0 2px 6px rgba(37,99,235,0.3);
+                  {% elif tw.is_current %}
+                    background:var(--accent-purple-soft); color:var(--accent-purple); border:1px solid var(--accent-purple);
+                  {% elif tw.is_past %}
+                    background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line);
+                  {% else %}
+                    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+                  {% endif %}">
+          Week {{ tw.number }} ({{ tw.starts_on|date:"j M" }}–{{ tw.ends_on|date:"j M" }})
+          {% if tw.is_current %} · <strong>Current</strong>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# 4. Weekly Timetable Grid Matrix #}
+  <section class="panel panel--blue" style="margin-bottom:32px;">
+    <header class="panel__header">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">📅</span>
+          <h2 style="font-size:15px; margin:0;">
+            Schedule Grid — Week {{ selected_week_num }} ({{ selected_week.starts_on|date:"j M" }} – {{ selected_week.ends_on|date:"j M Y" }})
+          </h2>
+        </div>
+        <span style="font-size:12.5px; color:var(--ink-soft);">
+          Today is <strong>{{ today|date:"l, j F Y" }}</strong>
+        </span>
+      </div>
+    </header>
+
+    <div class="panel__body" style="padding:0; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; text-align:left; min-width:850px;">
+        <thead>
+          <tr style="background:var(--surface-2); border-bottom:2px solid var(--line); font-size:12px; text-transform:uppercase; color:var(--ink-soft); font-weight:800;">
+            <th style="padding:12px 14px; width:130px;">Time / Period</th>
+            {% for day in days_list %}
+              <th style="padding:12px 14px;">
+                {{ day.name }}
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in grid_rows %}
+            <tr style="border-bottom:1px solid var(--line);">
+              {# Period Label & Time Range #}
+              <td style="padding:12px 14px; background:var(--surface-2); font-weight:700; font-size:12px; border-right:1px solid var(--line);">
+                <div style="color:var(--ink);">{{ row.period_info.period_label }}</div>
+                <div style="color:var(--ink-soft); font-size:11px; margin-top:2px;">
+                  {{ row.period_info.start_time|time:"H:i" }} – {{ row.period_info.end_time|time:"H:i" }}
+                </div>
+              </td>
+
+              {# Day Cells #}
+              {% for cell in row.cells %}
+                <td style="padding:10px 12px; vertical-align:top; width:18%; border-right:1px solid var(--line);">
+                  {% if cell.has_slot %}
+                    
+                    {# 1. APPROVED LESSON PLAN #}
+                    {% if cell.state == "APPROVED" %}
+                      <div class="card" style="padding:10px; border-left:3px solid #059669; background:#ECFDF5; border-radius:var(--r-sm);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span class="badge" style="background:#059669; color:#fff; font-size:10.5px; font-weight:700; padding:2px 5px;">✓ APPROVED</span>
+                          <span style="font-size:11px; color:#065F46; font-weight:600;">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:#065F46;">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11.5px; color:#047857; margin-top:2px;">{{ cell.slot.assignment.school_class.name }} {% if cell.slot.room %}· {{ cell.slot.room }}{% endif %}</div>
+                        <div style="margin-top:8px; display:flex; gap:6px;">
+                          <a href="{% url 'planning:lesson_plan_detail' cell.plan.pk %}" class="button button--small" style="padding:2px 8px; font-size:11px; background:#fff; color:#065F46; border:1px solid #A7F3D0;">View</a>
+                          <button type="button" class="button button--small btn-preview-pdf" data-pdf-url="{% url 'planning:lesson_plan_pdf' cell.plan.pk %}" data-title="Lesson Plan — {{ cell.slot.assignment.subject.name }} ({{ cell.date_str }})" style="padding:2px 6px; font-size:11px; background:#fff; color:#065F46; border:1px solid #A7F3D0;">PDF</button>
+                        </div>
+                      </div>
+
+                    {# 2. SUBMITTED LESSON PLAN (UNDER REVIEW) #}
+                    {% elif cell.state == "SUBMITTED" %}
+                      <div class="card" style="padding:10px; border-left:3px solid #2563EB; background:#EFF6FF; border-radius:var(--r-sm);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span class="badge" style="background:#2563EB; color:#fff; font-size:10.5px; font-weight:700; padding:2px 5px;">🔵 SUBMITTED</span>
+                          <span style="font-size:11px; color:#1E40AF; font-weight:600;">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:#1E40AF;">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11.5px; color:#1D4ED8; margin-top:2px;">{{ cell.slot.assignment.school_class.name }}</div>
+                        <div style="margin-top:8px;">
+                          <a href="{% url 'planning:lesson_plan_detail' cell.plan.pk %}" class="button button--small" style="padding:2px 8px; font-size:11px; background:#fff; color:#1E40AF; border:1px solid #BFDBFE;">View Details</a>
+                        </div>
+                      </div>
+
+                    {# 3. AWAITING POST-LESSON REMARKS & ATTENDANCE #}
+                    {% elif cell.state == "AWAITING_REMARKS" %}
+                      <div class="card" style="padding:10px; border-left:3px solid #7C3AED; background:#F5F3FF; border-radius:var(--r-sm); box-shadow:0 1px 4px rgba(124,58,237,0.15);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span class="badge" style="background:#7C3AED; color:#fff; font-size:10px; font-weight:800; padding:2px 5px;">✏️ ACTION REQ</span>
+                          <span style="font-size:11px; color:#5B21B6; font-weight:600;">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:#5B21B6;">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11.5px; color:#6D28D9; margin-top:2px;">{{ cell.slot.assignment.school_class.name }}</div>
+                        <div style="margin-top:8px;">
+                          <a href="{% url 'planning:lesson_plan_detail' cell.plan.pk %}" class="button button--small" style="padding:3px 8px; font-size:11px; background:#7C3AED; color:#fff; font-weight:700; width:100%; text-align:center; display:block;">Enter Remarks & Submit</a>
+                        </div>
+                      </div>
+
+                    {# 4. DRAFT PLANNED (FUTURE) #}
+                    {% elif cell.state == "DRAFT_PLANNED" %}
+                      <div class="card" style="padding:10px; border-left:3px solid #D97706; background:#FFFBEB; border-radius:var(--r-sm);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span class="badge" style="background:#D97706; color:#fff; font-size:10.5px; font-weight:700; padding:2px 5px;">🟡 DRAFT</span>
+                          <span style="font-size:11px; color:#92400E; font-weight:600;">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:#92400E;">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11.5px; color:#B45309; margin-top:2px;">{{ cell.slot.assignment.school_class.name }}</div>
+                        <div style="margin-top:8px;">
+                          <a href="{% url 'planning:lesson_plan_detail' cell.plan.pk %}" class="button button--small" style="padding:2px 8px; font-size:11px; background:#fff; color:#92400E; border:1px solid #FDE68A;">Edit Draft</a>
+                        </div>
+                      </div>
+
+                    {# 5. MISSED / UNPLANNED (PAST LESSON ELAPSED - SOLID RED ALERT - NO CREATE LINK) #}
+                    {% elif cell.state == "MISSED" %}
+                      <div class="card" style="padding:10px; border-left:3px solid #DC2626; background:#FEF2F2; border-radius:var(--r-sm); border:1px solid #F87171;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span class="badge" style="background:#DC2626; color:#fff; font-size:10.5px; font-weight:800; padding:2px 5px;">🔴 MISSED</span>
+                          <span style="font-size:11px; color:#991B1B; font-weight:600;">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:#991B1B;">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11px; color:#B91C1C; margin-top:2px;">{{ cell.slot.assignment.school_class.name }}</div>
+                        <div style="font-size:11px; color:#DC2626; font-weight:700; margin-top:6px; background:#FEE2E2; padding:3px 6px; border-radius:3px;">
+                          ⚠️ Unplanned (Elapsed)
+                        </div>
+                      </div>
+
+                    {# 6. PENDING CREATION (FUTURE LESSON - CLEAN ACTION CARD) #}
+                    {% elif cell.state == "PENDING_CREATION" %}
+                      <div class="card" style="padding:10px; border:1.5px dashed var(--line); background:var(--surface); border-radius:var(--r-sm); transition:all 0.15s ease;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span style="font-size:11px; color:var(--ink-soft); font-weight:700;">⚪ Upcoming</span>
+                          <span style="font-size:11px; color:var(--ink-soft);">{{ cell.date_str }}</span>
+                        </div>
+                        <strong style="display:block; font-size:12.5px; color:var(--ink);">{{ cell.slot.assignment.subject.name }}</strong>
+                        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">{{ cell.slot.assignment.school_class.name }}</div>
+                        <div style="margin-top:8px;">
+                          <button type="button" 
+                                  class="button button--primary button--small btn-quick-create-slot"
+                                  data-assignment-id="{{ cell.slot.assignment_id }}"
+                                  data-slot-id="{{ cell.slot.id }}"
+                                  data-date="{{ cell.date|date:'Y-m-d' }}"
+                                  data-start-time="{{ cell.slot.start_time|time:'H:i' }}"
+                                  data-end-time="{{ cell.slot.end_time|time:'H:i' }}"
+                                  style="padding:3px 8px; font-size:11px; width:100%;">
+                            + Create Plan
+                          </button>
+                        </div>
+                      </div>
+                    {% endif %}
+
+                  {% else %}
+                    {# No teaching slot for this day & period #}
+                    <div style="height:100%; min-height:60px; background:var(--surface-3); opacity:0.4; border-radius:var(--r-sm);"></div>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" style="padding:32px; text-align:center; color:var(--ink-soft);">
+                No timetable schedule slots defined for this week.
+              </td>
+            </tr>
           {% endfor %}
-        </ul>
-      </div>
-    {% else %}
-      <div class="empty-state">
-        <h3>No Lesson Plans yet</h3>
-        <p>Use the form above to begin a draft for a class lesson.</p>
-      </div>
-    {% endif %}
+        </tbody>
+      </table>
+    </div>
   </section>
+
+  {# 5. Modal for New Lesson Plan Creation #}
+  <div id="create-modal-backdrop" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9998; display:none; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border-radius:var(--r-md); max-width:560px; width:90%; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); z-index:9999; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 style="font-size:18px; margin:0;">+ Create Prospective Lesson Plan</h2>
+        <button type="button" id="btn-close-create-modal" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink-soft);">✕</button>
+      </div>
+
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;">
+        Select your teaching assignment and timetable slot. Dates and period details will automatically compute based on your schedule.
+      </p>
+
+      <form method="post" action="{% url 'planning:lesson_plan_list' %}" id="modal-lesson-plan-form">
+        {% csrf_token %}
+        <input type="hidden" name="schedule_slot" id="modal_schedule_slot" value="">
+        <input type="hidden" name="start_time" id="modal_start_time" value="">
+        <input type="hidden" name="end_time" id="modal_end_time" value="">
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Teaching Assignment:</label>
+            {{ form.assignment }}
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Academic Year:</label>
+              {{ form.academic_year }}
+            </div>
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Academic Term:</label>
+              {{ form.term }}
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1.5fr; gap:12px;">
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Term Week:</label>
+              <select id="modal_week_select" class="field select" style="width:100%;">
+                {% for tw in term_weeks %}
+                  <option value="{{ tw.number }}" data-start="{{ tw.starts_on|date:'Y-m-d' }}" data-end="{{ tw.ends_on|date:'Y-m-d' }}" {% if tw.number == selected_week_num %}selected{% endif %}>
+                    Week {{ tw.number }} ({{ tw.starts_on|date:'j M' }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Timetable Slot / Day:</label>
+              <select id="modal_slot_dropdown" class="field select" style="width:100%;">
+                <option value="">-- Choose Slot --</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Lesson Date (Prospective):</label>
+            <input type="date" name="lesson_date" id="modal_lesson_date" class="field" style="width:100%; font-weight:700;" min="{{ today|date:'Y-m-d' }}" required>
+            <div id="modal_time_display" style="font-size:12px; color:var(--accent-blue); font-weight:700; margin-top:4px;"></div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Work Plan Week (Optional Link):</label>
+            {{ form.originating_work_plan_week }}
+          </div>
+
+          <div style="background:var(--surface-3); border-left:3px solid var(--accent-purple); padding:10px 12px; border-radius:var(--r-sm); font-size:12px; color:var(--ink-soft);">
+            ℹ️ <strong>Attendance & Evaluation Remarks</strong> will unlock after the lesson concludes.
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+            <button type="button" class="button button--subtle" id="btn-cancel-modal">Cancel</button>
+            <button type="submit" class="button button--primary">Create Lesson Plan Draft</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
+
+{# Metadata for JavaScript Auto-Fill #}
+{{ slots_json_data|json_script:"schedule-slots-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const slotsData = JSON.parse(document.getElementById("schedule-slots-data").textContent || "[]");
+  const modalBackdrop = document.getElementById("create-modal-backdrop");
+  const btnOpenModal = document.getElementById("btn-open-create-modal");
+  const btnCloseModal = document.getElementById("btn-close-create-modal");
+  const btnCancelModal = document.getElementById("btn-cancel-modal");
+
+  const assignmentSelect = document.getElementById("id_assignment");
+  const weekSelect = document.getElementById("modal_week_select");
+  const slotDropdown = document.getElementById("modal_slot_dropdown");
+  const lessonDateInput = document.getElementById("modal_lesson_date");
+  const scheduleSlotInput = document.getElementById("modal_schedule_slot");
+  const startTimeInput = document.getElementById("modal_start_time");
+  const endTimeInput = document.getElementById("modal_end_time");
+  const timeDisplay = document.getElementById("modal_time_display");
+
+  function showModal() {
+    if (modalBackdrop) modalBackdrop.style.display = "flex";
+    populateSlotsForAssignment();
+  }
+
+  function hideModal() {
+    if (modalBackdrop) modalBackdrop.style.display = "none";
+  }
+
+  if (btnOpenModal) btnOpenModal.addEventListener("click", showModal);
+  if (btnCloseModal) btnCloseModal.addEventListener("click", hideModal);
+  if (btnCancelModal) btnCancelModal.addEventListener("click", hideModal);
+
+  // Direct quick-create buttons on weekly timetable grid
+  document.querySelectorAll(".btn-quick-create-slot").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      const assId = this.getAttribute("data-assignment-id");
+      const slotId = this.getAttribute("data-slot-id");
+      const targetDate = this.getAttribute("data-date");
+      const st = this.getAttribute("data-start-time");
+      const et = this.getAttribute("data-end-time");
+
+      if (assignmentSelect && assId) {
+        assignmentSelect.value = assId;
+      }
+      showModal();
+
+      if (slotDropdown && slotId) {
+        slotDropdown.value = slotId;
+      }
+      if (scheduleSlotInput) scheduleSlotInput.value = slotId || "";
+      if (lessonDateInput && targetDate) lessonDateInput.value = targetDate;
+      if (startTimeInput) startTimeInput.value = st || "";
+      if (endTimeInput) endTimeInput.value = et || "";
+      if (timeDisplay && st && et) {
+        timeDisplay.textContent = `Scheduled Period Time: ${st} – ${et}`;
+      }
+    });
+  });
+
+  function populateSlotsForAssignment() {
+    if (!assignmentSelect || !slotDropdown) return;
+    const selectedAssId = assignmentSelect.value;
+    const matchingSlots = slotsData.filter(s => s.assignment_id === selectedAssId);
+
+    slotDropdown.innerHTML = '<option value="">-- Choose Slot --</option>';
+    matchingSlots.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.setAttribute("data-day-idx", s.day_of_week);
+      opt.setAttribute("data-start-time", s.start_time);
+      opt.setAttribute("data-end-time", s.end_time);
+      opt.textContent = `${s.day_name} · ${s.start_time}–${s.end_time} (${s.period_label})`;
+      slotDropdown.appendChild(opt);
+    });
+
+    if (matchingSlots.length > 0) {
+      slotDropdown.selectedIndex = 1;
+      autoComputeDateFromSlot();
+    }
+  }
+
+  function autoComputeDateFromSlot() {
+    if (!weekSelect || !slotDropdown || !lessonDateInput) return;
+    const weekOpt = weekSelect.options[weekSelect.selectedIndex];
+    const slotOpt = slotDropdown.options[slotDropdown.selectedIndex];
+
+    if (weekOpt && slotOpt && slotOpt.value) {
+      const weekStartStr = weekOpt.getAttribute("data-start");
+      const dayIdx = parseInt(slotOpt.getAttribute("data-day-idx") || "0");
+      const st = slotOpt.getAttribute("data-start-time") || "";
+      const et = slotOpt.getAttribute("data-end-time") || "";
+
+      if (weekStartStr) {
+        const d = new Date(weekStartStr);
+        d.setDate(d.getDate() + dayIdx);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        lessonDateInput.value = `${y}-${m}-${day}`;
+      }
+
+      if (scheduleSlotInput) scheduleSlotInput.value = slotOpt.value;
+      if (startTimeInput) startTimeInput.value = st;
+      if (endTimeInput) endTimeInput.value = et;
+      if (timeDisplay && st && et) {
+        timeDisplay.textContent = `Scheduled Period Time: ${st} – ${et}`;
+      }
+    }
+  }
+
+  if (assignmentSelect) {
+    assignmentSelect.addEventListener("change", populateSlotsForAssignment);
+  }
+  if (weekSelect) {
+    weekSelect.addEventListener("change", autoComputeDateFromSlot);
+  }
+  if (slotDropdown) {
+    slotDropdown.addEventListener("change", autoComputeDateFromSlot);
+  }
+});
+</script>
 {% endblock %}

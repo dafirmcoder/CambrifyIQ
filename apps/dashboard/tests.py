@@ -27,3 +27,17 @@ class DashboardTests(TestCase):
         self.assertRedirects(
             response, reverse("accounts:create_school"), fetch_redirect_response=False
         )
+
+    def test_teacher_sees_plan_counts(self):
+        user = User.objects.create_user(
+            "teacher@example.com", "StrongPass!246", full_name="John Teacher"
+        )
+        school = School.objects.create(name="Dashboard School", slug="dashboard-2", code="DASH2")
+        Membership.objects.create(school=school, user=user, role=Membership.Role.TEACHER)
+        self.client.force_login(user)
+        response = self.client.get(reverse("dashboard:home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Draft Plans")
+        self.assertContains(response, "Returned Plans")
+        self.assertContains(response, "Approved Plans")
+        self.assertContains(response, "0")

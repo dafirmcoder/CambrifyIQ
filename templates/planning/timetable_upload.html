@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Upload Weekly Timetable · {{ active_school.name }}{% endblock %}
+{% block content %}
+<div class="page-shell" style="max-width:800px; margin:0 auto;">
+  <header class="page-header" style="margin-bottom:24px;">
+    <div>
+      <span class="role-chip">Teacher Automated Setup</span>
+      <h1 style="font-size:22px; margin:4px 0;">Upload Weekly Timetable (PDF)</h1>
+      <p style="color:var(--ink-soft); font-size:14px; margin:0;">
+        Upload your school timetable PDF. The system will extract your lesson days, times, subjects, and classes so you can start planning without waiting for manual admin assignments.
+      </p>
+    </div>
+  </header>
+
+  <section class="panel panel--blue" style="padding:28px 24px;">
+    <form method="post" action="{% url 'planning:timetable_upload' %}" enctype="multipart/form-data" id="timetable-upload-form">
+      {% csrf_token %}
+
+      <div style="border:2px dashed var(--accent-blue); border-radius:var(--r-md); padding:40px 20px; text-align:center; background:var(--surface-2); cursor:pointer; transition:background .2s, border-color .2s;" id="drop-zone">
+        <div style="font-size:42px; margin-bottom:12px;">📄</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:var(--ink);">Choose or Drag & Drop your Timetable PDF</h3>
+        <p style="font-size:13px; color:var(--ink-soft); margin:0 0 16px;">
+          Supports standard school timetables (grid or list schedules with days, time periods, classes, and subjects).
+        </p>
+
+        <input type="file" name="timetable_file" id="timetable_file" accept=".pdf,application/pdf" style="display:none;" required>
+        <button type="button" class="button button--secondary" id="btn-browse-file">
+          Browse PDF File
+        </button>
+
+        <div id="file-info" style="margin-top:16px; padding:10px 14px; background:var(--surface); border:1px solid var(--accent-green); border-radius:var(--r-sm); font-weight:700; color:var(--ink); font-size:13px; display:none; max-width:400px; margin-left:auto; margin-right:auto;">
+          ✓ Selected: <span id="file-name" style="color:var(--accent-blue);"></span> (<span id="file-size" style="color:var(--ink-soft); font-weight:normal;"></span>)
+        </div>
+      </div>
+
+      <div style="margin-top:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <a href="{% url 'planning:lesson_plan_list' %}" class="button button--subtle">
+          ← Back to Lesson Plans
+        </a>
+        <button type="submit" class="button button--primary button--large" id="btn-submit-upload" disabled>
+          ⚡ Parse Timetable & Preview Assignments
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" style="margin-top:24px;">
+    <header class="panel__header"><h3 style="font-size:14px; margin:0;">💡 How Automated Timetable Extraction Works</h3></header>
+    <div class="panel__body" style="font-size:13px; color:var(--ink-soft); line-height:1.6;">
+      <ul style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:8px;">
+        <li><strong>Automatic Detection</strong>: Identifies days (Monday–Friday), time blocks (e.g. 08:00–08:45), and target classes (e.g. Grade 7A, Stage 8).</li>
+        <li><strong>Subject & Abbreviation Matching</strong>: Recognizes abbreviations (COMP, DL, CS, ICT, MATH, SCI, BIO, etc.) and allows you to confirm matching subjects via dropdown.</li>
+        <li><strong>Interactive Preview & Adjustment</strong>: You will review, edit, or adjust all detected slots before confirming.</li>
+        <li><strong>Immediate Planning</strong>: Once confirmed, teaching assignments are ready instantly for your Lesson Plans and Work Plans!</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("timetable-upload-form");
+  const fileInput = document.getElementById("timetable_file");
+  const fileInfo = document.getElementById("file-info");
+  const fileName = document.getElementById("file-name");
+  const fileSize = document.getElementById("file-size");
+  const btnSubmit = document.getElementById("btn-submit-upload");
+  const btnBrowse = document.getElementById("btn-browse-file");
+  const dropZone = document.getElementById("drop-zone");
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  }
+
+  function handleFile(file) {
+    if (file && file.name.toLowerCase().endsWith(".pdf")) {
+      fileName.textContent = file.name;
+      fileSize.textContent = formatBytes(file.size);
+      fileInfo.style.display = "block";
+      btnSubmit.disabled = false;
+      dropZone.style.background = "var(--surface-3)";
+      dropZone.style.borderColor = "var(--accent-green)";
+    } else {
+      alert("Please select a valid PDF file.");
+      fileInput.value = "";
+      fileInfo.style.display = "none";
+      btnSubmit.disabled = true;
+      dropZone.style.background = "var(--surface-2)";
+      dropZone.style.borderColor = "var(--accent-blue)";
+    }
+  }
+
+  btnBrowse.addEventListener("click", function(e) {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  dropZone.addEventListener("click", function(e) {
+    if (e.target !== fileInput) {
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener("change", function() {
+    if (this.files && this.files.length > 0) {
+      handleFile(this.files[0]);
+    }
+  });
+
+  dropZone.addEventListener("dragover", function(e) {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--accent-purple)";
+    dropZone.style.background = "var(--surface-3)";
+  });
+
+  dropZone.addEventListener("dragleave", function(e) {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--accent-blue)";
+    dropZone.style.background = "var(--surface-2)";
+  });
+
+  dropZone.addEventListener("drop", function(e) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      handleFile(file);
+    }
+  });
+
+  form.addEventListener("submit", function() {
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = "⏳ Parsing Timetable PDF, please wait...";
+  });
+});
+</script>
+{% endblock %}

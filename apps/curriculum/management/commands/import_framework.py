@@ -127,7 +127,7 @@ class Command(BaseCommand):
                         i += 2
                     else:
                         # One heading
-                        if current_topic is None:
+                        if current_topic is None or len(current_topic.get("los", [])) > 0:
                             current_topic = {"title": line, "los": []}
                             topics.append(current_topic)
                             current_subtopic = None
@@ -222,7 +222,7 @@ class Command(BaseCommand):
                 )
                 if not dry_run:
                     with transaction.atomic():
-                        # Wipe and recreate topics/los for simplicity since we keep the same scheme
+                        LearningObjective.objects.filter(scheme=latest_scheme).delete()
                         Topic.objects.filter(scheme=latest_scheme).delete()
                         self.insert_hierarchy(latest_scheme, parsed_topics)
             else:

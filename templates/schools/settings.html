@@ -2,13 +2,44 @@
 {% block title %}School setup · CambrifyIQ{% endblock %}
 {% block content %}
 <div class="page-shell">
-  <header class="page-header"><div><p class="eyebrow">Workspace administration</p><h1>School setup</h1><p>Keep tenant identity and branding details accurate.</p></div></header>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Workspace administration</p>
+      <h1>School setup</h1>
+      <p>Keep tenant identity and branding details accurate.</p>
+    </div>
+  </header>
   <div class="settings-layout">
     {% include "schools/_settings_nav.html" %}
-    <form method="post" class="form-panel" novalidate>{% csrf_token %}<h2>School profile</h2><p>These details will identify your workspace and later appear on approved plan documents.</p>
+    <form method="post" enctype="multipart/form-data" class="form-panel" novalidate>
+      {% csrf_token %}
+      <h2>School profile & branding</h2>
+      <p>These details will identify your workspace and appear on generated Work Plans and Lesson Plans.</p>
+      
+      {% if active_school.logo_url %}
+        <div style="margin-bottom:20px; padding:16px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); display:flex; align-items:center; gap:16px;">
+          <img src="{{ active_school.logo_url }}" alt="{{ active_school.name }} logo" style="max-height:56px; max-width:140px; object-fit:contain; border-radius:var(--r-sm); background:#ffffff; padding:4px; border:1px solid rgba(0,0,0,0.08);" />
+          <div>
+            <strong style="display:block; font-size:14px; color:var(--ink);">Current School Logo</strong>
+            <small style="color:var(--ink-soft); font-size:12px;">This logo will appear on the top-left of all official Work Plan and Lesson Plan documents.</small>
+          </div>
+        </div>
+      {% endif %}
+
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-      <div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'address' or field.name == 'logo_url' %}field--full{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>{% endfor %}</div>
-      <div class="form-actions"><button class="button button--primary" type="submit">Save school details</button></div>
+      <div class="form-grid">
+        {% for field in form %}
+          <div class="field {% if field.name == 'address' or field.name == 'logo_url' or field.name == 'logo_file' %}field--full{% endif %}">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {{ field.errors }}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button class="button button--gradient" type="submit">Save school details & logo</button>
+      </div>
     </form>
   </div>
 </div>
